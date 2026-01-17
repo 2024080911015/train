@@ -59,94 +59,55 @@ class WPrimeBalanceSimulator:
 
         return final_v
 
-    def run_segment_simulation(self, power_strategy, course_data, wind_speed=0, wind_deg=0):
+    def run_segment_simulation(self, power_strategy, course_data):
         """
-        :param wind_speed: 风速 (m/s)
-        :param wind_deg: 风向 (0度为正北，与赛道方向的夹角)
+        运行整场比赛的仿真
+        :param power_strategy: 每一段的目标功率列表
+        :param course_data: 赛道数据列表
+        :return: (total_time, w_history, is_exhausted)
         """
         current_w = self.cyclist.w_prime
         total_time = 0
         w_history = [current_w]
-        speed_history = []  # 记录速度以便分析
-
-        # 初始速度 (假设从静止开始，或者给一个初速度 10m/s)
-        v_curr = 0.1
-
         is_exhausted = False
+
+        # 预计算相对 CP (W/kg)，用于恢复公式
         cp_rel = self.cyclist.cp / self.mass
 
-        for i, segment in enumerate(course_data):
-            # 获取当前段的目标功率（如果不优化每一段，可以取策略参数计算）
-            # 注意：如果插值后段数变多，power_strategy 数组长度也要匹配
-            p_target = power_strategy[i] if i < len(power_strategy) else power_strategy[-1]
-
+        for i, p in enumerate(power_strategy):
+            # 1. 获取赛道信息
+            segment = course_data[i]
             slope = segment['slope']
             length = segment['length']
-            radius = segment['radius']
+            radius = segment.get('radius', 9999)  # 默认为直道
 
-            # === 核心修复：动力学迭代 ===
-            # 将一段拆分为更小的时间步 (dt) 来模拟加速度，或者简单地整段模拟
-            # 这里用欧拉法做简单积分：v_next = v_curr + a * dt
-
-            # 1. 计算当前受力
-            # 风速模型：假设简单的逆风/顺风 (headwind_component)
-            # 实际上应该结合赛道方向计算，这里简化假设 wind_deg 是相对于前进方向
-            v_air = v_curr + wind_speed * np.cos(np.radians(wind_deg))
-
-            f_drag = 0.5 * self.rho * self.cd_a * (v_air ** 2)
-            f_grav = self.total_mass * self.g * np.sin(slope)
-            f_roll = self.total_mass * self.g * self.mu_roll * np.cos(slope)
-
-            f_resist = f_drag + f_grav + f_roll
-
-            # 2. 计算驱动力 F_prop = P / v
-            # 避免除以零
-            v_safe_div = max(v_curr, 0.1)
-            f_prop = p_target / v_safe_div
-
-            # 3. 计算净力与加速度
-            f_net = f_prop - f_resist
-            acc = f_net / self.total_mass
-
-            # 4. 更新速度 (v^2 = v0^2 + 2ax)
-            # 这种公式比时间积分更适合定长路段
-            v_next_sq = v_curr ** 2 + 2 * acc * length
-
-            if v_next_sq < 0:
-                v_next = 0.1  # 无法爬坡，强制最小速度
-            else:
-                v_next = np.sqrt(v_next_sq)
-
-            # === 安全限制 (弯道减速) ===
-            # 如果这是一个急弯段，必须限制进入速度
-            if radius < 100:
-                v_limit = np.sqrt(self.mu_tire * self.g * radius)
-                v_next = min(v_next, v_limit)
-
-            # 5. 计算这一段耗时
-            # 平均速度 approximation
-            v_avg = (v_curr + v_next) / 2
-            dt = length / max(v_avg, 0.1)
+            # 2. 物理层：计算速度和耗时
+            v = self.solve_velocity_with_limit(p, slope, radius)
+            dt = length / v
             total_time += dt
 
-            # 更新状态供下一段使用
-            v_curr = v_next
-            speed_history.append(v_curr)
-
-            # === W' 生理模型 (与原来保持一致) ===
-            if p_target > self.cyclist.cp:
-                loss = (p_target - self.cyclist.cp) * dt
+            # 3. 生理层：计算 W' 变化
+            if p > self.cyclist.cp:
+                # [消耗阶段] P > CP
+                loss = (p - self.cyclist.cp) * dt
                 current_w -= loss
             else:
-                p_rel = p_target / self.mass
-                recovery_rate = cp_rel - (0.0879 * p_rel + 2.9214)  # 简化的Skiba公式
-                if recovery_rate > 0:
-                    current_w += recovery_rate * self.mass * dt
+                # [恢复阶段] P < CP (使用线性恢复模型)
+                p_rel = p / self.mass
+                # 恢复率公式: CP_rel - (0.0879 * P_rel + 2.9214)
+                recovery_rate_rel = cp_rel - (0.0879 * p_rel + 2.9214)
 
-            if current_w > self.cyclist.w_prime: current_w = self.cyclist.w_prime
+                if recovery_rate_rel > 0:
+                    recovery_joules = recovery_rate_rel * self.mass * dt
+                    current_w += recovery_joules
+
+            # 4. 边界检查
+            if current_w > self.cyclist.w_prime:
+                current_w = self.cyclist.w_prime  # 满油
+
             if current_w < 0:
-                current_w = 0
                 is_exhausted = True
+                current_w = 0  # 避免画图时出现负数
 
             w_history.append(current_w)
 
