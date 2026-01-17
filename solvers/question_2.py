@@ -132,107 +132,132 @@ RIDER_LINESTYLES = {
 
 def plot_comparison_result(course_name, rider_results):
     """
-    策略一：对比绘图 - 一张图展示4个选手的功率策略和W'变化
+    策略一：对比绘图 - 一张图展示4个选手的功率策略 (含海拔背景)
     :param course_name: 赛道名称
     :param rider_results: 列表，每个元素包含 {rider, course_data, power_strategy, w_history, total_time}
     """
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 10), sharex=True)
-    
-    # 用于记录时间结果（图例中显示）
+    # [修改] 只创建一个大图，专注展示功率与地形
+    fig, ax1 = plt.subplots(figsize=(16, 9))
+
+    # 用于记录时间结果
     time_labels = []
 
-    # === 新增: 准备地形数据 (使用最长的赛道作为背景) ===
+    # === 1. 准备地形数据 (使用最长的赛道作为背景) ===
     longest_result = max(rider_results, key=lambda r: sum(s['length'] for s in r['course_data']))
     l_course_data = longest_result['course_data']
-    
+
     l_lengths = [s['length'] for s in l_course_data]
     l_distances = np.cumsum(l_lengths) / 1000.0  # km
-    l_distances = np.insert(l_distances, 0, 0)[:-1]
-    
+    l_distances = np.insert(l_distances, 0, 0) # 保留终点，长度为 N+1
+
     l_elevations = [0]
     curr_ele = 0
     for s in l_course_data:
         curr_ele += s['length'] * np.sin(s['slope'])
-        l_elevations.append(curr_ele)
-    l_elevations = l_elevations[:-1]
+        l_elevations.append(curr_ele) # 长度为 N+1
+
+    # 移除之前的截断逻辑
+    # l_elevations = l_elevations[:-1]
+    # l_n = len(l_course_data)
+    # l_distances = l_distances[:l_n]
+    # l_elevations = l_elevations[:l_n]
+
+    # === 2. 绘制海拔背景 (右侧Y轴) ===
+    ax2_ele = ax1.twinx()
+    color_e = '#2ca02c' # 这里的绿色稍微深一点，更专业
+    ax2_ele.set_ylabel('Elevation (m)', color=color_e, fontsize=13, fontweight='bold')
+    ax2_ele.tick_params(axis='y', labelcolor=color_e)
     
-    l_n = len(l_course_data)
-    l_distances = l_distances[:l_n]
-    l_elevations = l_elevations[:l_n]
+    # [回滚] 移除强制统一的 Y 轴范围，恢复自动缩放
     
-    # 绘制海拔背景 (双轴)
-    ax1_ele = ax1.twinx()
-    color_e = 'tab:green'
-    ax1_ele.set_ylabel('Elevation (m)', color=color_e, fontsize=12)
-    ax1_ele.fill_between(l_distances, min(l_elevations), l_elevations, color=color_e, alpha=0.2, label='Elevation')
-    
-    # 标记急弯 (R < 100m) - 基于最长赛道
+    # 填充地形 (使用渐变绿色的感觉，通过alpha控制)
+    ax2_ele.fill_between(l_distances, min(l_elevations), l_elevations, 
+                         color=color_e, alpha=0.15, label='Elevation Profile')
+
+    # 标记急弯 (R < 100m) - 绘制在背景层
     sharp_turn_indices = [i for i, s in enumerate(l_course_data) if s['radius'] < 100 and i < len(l_distances)]
     for idx in sharp_turn_indices:
-        ax1.axvline(x=l_distances[idx], color='red', linestyle=':', alpha=0.15)  # 颜色淡一点以免干扰曲线
+        # 使用极细的红色虚线标记急弯
+        ax1.axvline(x=l_distances[idx], color='red', linestyle=':', alpha=0.15, linewidth=0.8)
 
+    # === 3. 绘制每个车手的功率曲线 ===
     for result in rider_results:
         rider = result['rider']
         course_data = result['course_data']
         power_strategy = result['power_strategy']
-        w_history = result['w_history']
         total_time = result['total_time']
-        
+
         # 数据准备
         lengths = [s['length'] for s in course_data]
-        distances = np.cumsum(lengths) / 1000.0  # km
-        distances = np.insert(distances, 0, 0)[:-1]
-        
-        # 对齐
-        n_segments = len(course_data)
-        distances = distances[:n_segments]
-        w_history = w_history[:n_segments]
-        power_strategy = power_strategy[:n_segments]
-        
-        # 获取该选手的颜色和线型
+        distances = np.cumsum(lengths) / 1000.0
+        distances = np.insert(distances, 0, 0) # 长度 N+1，包含终点
+
+        # 补齐功率数据，使长度也为 N+1，以便画完全程
+        # 为了避免最后一段出现不自然的"平直线" (Zero-order hold)，
+        # 我们这里不简单重复最后一个点，而是让最后一个点就停在前一个点的位置？
+        # 不，用户之前要求"不要截断"，所以必须画到distances[-1]。
+        # 我们可以尝试线性外推？或者就保持重复，但确保不要画出界。
+        if len(power_strategy) > 0:
+            power_strategy_plot = np.append(power_strategy, power_strategy[-1])
+        else:
+            power_strategy_plot = power_strategy
+
+        # 确保维度匹配 (安全校验)
+        n = min(len(distances), len(power_strategy_plot))
+        distances = distances[:n]
+        power_strategy_plot = power_strategy_plot[:n]
+
+        # 获取样式
         color = RIDER_COLORS.get(rider.name, 'gray')
         linestyle = RIDER_LINESTYLES.get(rider.name, '-')
-        
-        # 标签包含时间
-        label = f"{rider.name} ({total_time/60:.1f} min)"
-        time_labels.append((rider.name, total_time))
-        
-        # --- 子图 1: 功率曲线对比 ---
-        ax1.plot(distances, power_strategy, color=color, linestyle=linestyle,
-                 label=label, alpha=0.8, linewidth=1.5)
-        
-        # --- 子图 2: W' 余额对比 ---
-        ax2.plot(distances, w_history, color=color, linestyle=linestyle,
-                 label=f"{rider.name}", linewidth=1.5)
-    
-    # 子图1 设置
-    ax1.set_ylabel('Power (Watts)', fontsize=12)
-    ax1.set_title(f"Course: {course_name} - Power Strategy Comparison (4 Riders)", fontsize=14)
-    ax1.legend(loc='upper right', fontsize=9)
-    ax1.grid(True, alpha=0.3)
-    
-    # 子图2 设置
-    ax2.set_xlabel('Distance (km)', fontsize=12)
-    ax2.set_ylabel("W' Balance (Joules)", fontsize=12)
-    ax2.axhline(y=0, color='red', linewidth=1, linestyle='--', alpha=0.5)
-    ax2.legend(loc='upper right', fontsize=9)
-    ax2.grid(True, alpha=0.3)
-    
+
+        # 标签包含时间 (格式: Name: MM.m min)
+        label_text = f"{rider.name} ({total_time/60:.1f} min)"
+
+        ax1.plot(distances, power_strategy_plot, color=color, linestyle=linestyle,
+                 label=label_text, alpha=0.9, linewidth=1.5)
+
+    # === 4. 美化设置 ===
+    # [更新] 严格限制 X 轴范围，防止画出终点 (针对"终点之后的就不要画了")
+    ax1.set_xlim(0, l_distances[-1])
+
+    ax1.set_xlabel('Distance (km)', fontsize=13, fontweight='bold')
+    ax1.set_ylabel('Power Output (Watts)', fontsize=13, fontweight='bold')
+    ax1.set_title(f"Optimization Results: {course_name}\nPower Strategy Comparison",
+                  fontsize=16, fontweight='bold', pad=15)
+
+    # 启用更细致的网格
+    ax1.grid(True, which='major', linestyle='--', alpha=0.4, color='gray')
+    ax1.minorticks_on()
+    ax1.grid(True, which='minor', linestyle=':', alpha=0.2)
+
+    # 合并图例 (左侧Power和右侧Elevation)
+    lines_1, labels_1 = ax1.get_legend_handles_labels()
+    lines_2, labels_2 = ax2_ele.get_legend_handles_labels()
+
+    # 将图例放在底部，水平排列
+    ax1.legend(lines_1 + lines_2, labels_1 + labels_2,
+               loc='upper center', bbox_to_anchor=(0.5, -0.1),
+               ncol=5, frameon=True, fontsize=11,
+               shadow=True, fancybox=True, edgecolor='black')
+
     plt.tight_layout()
-    
+    # 调整布局留出底部图例空间
+    plt.subplots_adjust(bottom=0.15)
+
     # 保存
     output_dir = os.path.join(project_root, 'images')
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    
+
     safe_course = course_name.replace(" ", "_")
-    filename = f'Q2_{safe_course}_comparison.png'
+    filename = f'Q2_{safe_course}_power_comparison.png'
     save_path = os.path.join(output_dir, filename)
-    
-    plt.savefig(save_path, dpi=150)
+
+    plt.savefig(save_path, dpi=200) # 提高DPI使图片更清晰
     print(f"  -> Comparison graph saved: {filename}")
     plt.close()
-    
+
     return time_labels
 
 
@@ -254,7 +279,7 @@ def solve_q2():
     # (B) 东京奥运会赛道 (男子完整，女子取一半距离)
     tokyo_path = os.path.join(project_root, 'data', 'course_tokyo.csv')
     tokyo_data_full = load_real_course(tokyo_path)
-    
+
     # 计算女子赛道 (取前一半距离)
     tokyo_data_female = None
     if tokyo_data_full:
@@ -290,18 +315,18 @@ def solve_q2():
         print(f"\n{'='*50}")
         print(f"Processing Course: {c_name}")
         print(f"{'='*50}")
-        
+
         # 收集该赛道所有选手的结果（用于对比绘图）
         rider_results_for_plot = []
-        
+
         for rider in riders:
             # 根据性别选择对应的赛道数据
             c_data = config['male'] if rider.gender == 'Male' else config['female']
-            
+
             if c_data is None:
                 print(f"Skipping {c_name} for {rider.name} (data not available)")
                 continue
-            
+
             print(f"\n--- Optimizing for {rider.name} ({rider.rider_type}) | Segments: {len(c_data)} ---")
 
             # A. 运行模拟退火
@@ -330,7 +355,7 @@ def solve_q2():
                 "Time (s)": round(best_time, 2),
                 "Time (min)": round(best_time / 60, 2)
             })
-        
+
         # E. 绘制该赛道的4选手对比图
         if rider_results_for_plot:
             print(f"\n--- Generating comparison plot for {c_name} ---")
