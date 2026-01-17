@@ -5,7 +5,13 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="00c205ae-e2c1-4618-9e30-a331d1f2e5b7" name="Changes" comment="1">
+      <change afterPath="$PROJECT_DIR$/data/flanders_men.csv" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/data/flanders_women.csv" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/data/Q2_Final_Results.csv" beforeDir="false" afterPath="$PROJECT_DIR$/data/Q2_Final_Results.csv" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/data/course_flanders.csv" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/images/Q2_Designed_Custom_Track_Male_TT.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/solvers/question_2.py" beforeDir="false" afterPath="$PROJECT_DIR$/solvers/question_2.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -36,6 +42,7 @@
     "Python.generate_custom_track.executor": "Run",
     "Python.question_1.executor": "Run",
     "Python.question_2.executor": "Run",
+    "Python.simulator.executor": "Run",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
     "RunOnceActivity.git.unshallow": "true",

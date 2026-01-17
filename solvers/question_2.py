@@ -197,42 +197,61 @@ def solve_q2():
     riders = get_all_riders()
     print(f"Loaded {len(riders)} riders.")
 
-    # 2. 定义赛道列表
-    courses = []
-
-    # (A) 加载自主设计的赛道 (course_custom.csv)
+    # 2. 预加载赛道数据
+    # (A) 自主设计的赛道 (男女通用)
     custom_path = os.path.join(project_root, 'data', 'course_custom.csv')
     print(f"Loading Custom Course from {custom_path}...")
     custom_data = load_custom_course_from_csv(custom_path)
 
-    if custom_data:
-        courses.append({'name': 'Designed_Custom_Track', 'data': custom_data})
-    else:
-        print("Skipping Custom Track (File not found or error).")
-
-    # (B) 加载真实赛道 (Tokyo / Flanders)
-    # 直接读取文件，不进行插值
+    # (B) 东京奥运会赛道 (男子完整，女子取一半距离)
     tokyo_path = os.path.join(project_root, 'data', 'course_tokyo.csv')
-    tokyo_data = load_real_course(tokyo_path)
-    if tokyo_data:
-        courses.append({'name': 'Tokyo_Olympic', 'data': tokyo_data})
+    tokyo_data_full = load_real_course(tokyo_path)
+    
+    # 计算女子赛道 (取前一半距离)
+    tokyo_data_female = None
+    if tokyo_data_full:
+        total_length = sum(s['length'] for s in tokyo_data_full)
+        half_length = total_length / 2.0
+        accumulated = 0
+        tokyo_data_female = []
+        for s in tokyo_data_full:
+            if accumulated >= half_length:
+                break
+            tokyo_data_female.append(s)
+            accumulated += s['length']
+        print(f"Tokyo Female course: {len(tokyo_data_female)} segments ({accumulated/1000:.1f} km)")
 
-    flanders_path = os.path.join(project_root, 'data', 'course_flanders.csv')
-    flanders_data = load_real_course(flanders_path)
-    if flanders_data:
-        courses.append({'name': 'Flanders_WorldChamp', 'data': flanders_data})
+    # (C) Flanders 赛道 (男女分别读取不同文件)
+    flanders_men_path = os.path.join(project_root, 'data', 'flanders_men.csv')
+    flanders_women_path = os.path.join(project_root, 'data', 'flanders_women.csv')
+    flanders_data_male = load_real_course(flanders_men_path)
+    flanders_data_female = load_real_course(flanders_women_path)
 
     # 3. 开始优化循环
     results = []
 
-    for course in courses:
-        c_name = course['name']
-        c_data = course['data']
-        print(f"\n==========================================")
-        print(f"Processing Course: {c_name} (Segments: {len(c_data)})")
-        print(f"==========================================")
+    # 定义赛道配置：每个赛道根据性别选择不同数据
+    course_configs = [
+        # {'name': 'Designed_Custom_Track', 'male': custom_data, 'female': custom_data},
+        {'name': 'Tokyo_Olympic', 'male': tokyo_data_full, 'female': tokyo_data_female},
+        {'name': 'Flanders_WorldChamp', 'male': flanders_data_male, 'female': flanders_data_female}
+    ]
 
+    for config in course_configs:
+        c_name = config['name']
+        
         for rider in riders:
+            # 根据性别选择对应的赛道数据
+            c_data = config['male'] if rider.gender == 'Male' else config['female']
+            
+            if c_data is None:
+                print(f"Skipping {c_name} for {rider.name} (data not available)")
+                continue
+                
+            print(f"\n==========================================")
+            print(f"Course: {c_name} | Rider: {rider.name} (Segments: {len(c_data)})")
+            print(f"==========================================")
+
             print(f"\n--- Optimizing for {rider.name} ({rider.rider_type}) ---")
 
             # A. 运行模拟退火
