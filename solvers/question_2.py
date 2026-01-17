@@ -45,55 +45,55 @@ def load_custom_course_from_csv(csv_path):
     return course_data
 
 
-def load_real_course(csv_path):
+import numpy as np
+import pandas as pd
+from scipy.interpolate import interp1d
+
+
+def load_real_course(csv_path, step_size=100.0):
     """
-    [修改版] 读取真实赛道 CSV 文件 (Tokyo / Flanders)。
-    **已移除自动插值逻辑**：直接按 CSV 中的行读取分段。
-    请确保 CSV 文件中的点足够密集（例如每 100m 一个点）。
-    CSV 格式需为: distance, elevation
+    读取粗糙的 CSV 并通过线性插值将其转换为高精度的每 100米 一段的数据。
+    :param step_size: 插值步长，默认 100米
     """
     if not os.path.exists(csv_path):
-        print(f"Warning: File {csv_path} not found. Skipping this course.")
+        print(f"Warning: File {csv_path} not found.")
         return None
 
-    try:
-        df = pd.read_csv(csv_path)
-        # 确保按距离排序
-        df = df.sort_values(by='distance').reset_index(drop=True)
-    except Exception as e:
-        print(f"Error reading {csv_path}: {e}")
-        return None
+    df = pd.read_csv(csv_path)
 
+    # 1. 获取原始的距离(x)和海拔(y)
+    original_dist = df['distance'].values
+    original_elev = df['elevation'].values
+
+    # 2. 创建新的高精度距离轴 (0, 100, 200, ..., End)
+    total_len = original_dist[-1]
+    new_dist = np.arange(0, total_len, step_size)
+
+    # 3. 线性插值计算对应的海拔
+    f_interp = interp1d(original_dist, original_elev, kind='linear')
+    new_elev = f_interp(new_dist)
+
+    # 4. 构建分段数据 (segment)
     course_data = []
+    for i in range(len(new_dist) - 1):
+        length = new_dist[i + 1] - new_dist[i]
 
-    # === 直接读取 CSV 分段 ===
-    # 遍历每一行，计算与下一行的差值作为一段
-    for i in range(len(df) - 1):
-        dist_curr = df.iloc[i]['distance']
-        elev_curr = df.iloc[i]['elevation']
+        # 计算坡度: (海拔差 / 距离差) 的反正切
+        elev_diff = new_elev[i + 1] - new_elev[i]
+        slope = np.arctan(elev_diff / length)
 
-        dist_next = df.iloc[i + 1]['distance']
-        elev_next = df.iloc[i + 1]['elevation']
-
-        length = dist_next - dist_curr
-
-        # 忽略距离极小或为0的段（防止除零错误）
-        if length <= 0.001:
-            continue
-
-        # 计算坡度 (弧度)
-        slope = np.arctan((elev_next - elev_curr) / length)
-
-        # 真实赛道默认设为直道 (如果 CSV 里没有 radius 列)
+        # 简单处理：真实赛道如果有急弯，建议手动在 CSV 里标记
+        # 这里默认给一个大半径（直道）
         radius = 9999.0
 
         course_data.append({
             'length': length,
             'slope': slope,
-            'radius': radius
+            'radius': radius,
+            'elevation_start': new_elev[i]  # 仅供绘图参考
         })
 
-    print(f"Loaded real course from {csv_path}: {len(course_data)} segments.")
+    print(f"Course loaded & interpolated: {len(course_data)} segments (from {len(df)} points).")
     return course_data
 
 

@@ -11,6 +11,14 @@
       <change beforePath="$PROJECT_DIR$/images/Q2_Designed_Custom_Track_power_comparison.png" beforeDir="false" afterPath="$PROJECT_DIR$/images/Q2_Designed_Custom_Track_power_comparison.png" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/images/Q2_Flanders_WorldChamp_power_comparison.png" beforeDir="false" afterPath="$PROJECT_DIR$/images/Q2_Flanders_WorldChamp_power_comparison.png" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/images/Q2_Tokyo_Olympic_power_comparison.png" beforeDir="false" afterPath="$PROJECT_DIR$/images/Q2_Tokyo_Olympic_power_comparison.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/models/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/models/__init__.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/models/cyclist.py" beforeDir="false" afterPath="$PROJECT_DIR$/models/cyclist.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/models/optimizer.py" beforeDir="false" afterPath="$PROJECT_DIR$/models/optimizer.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/models/simulator.py" beforeDir="false" afterPath="$PROJECT_DIR$/models/simulator.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/solvers/pl.py" beforeDir="false" afterPath="$PROJECT_DIR$/solvers/pl.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/solvers/question_1.py" beforeDir="false" afterPath="$PROJECT_DIR$/solvers/question_1.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/solvers/question_2.py" beforeDir="false" afterPath="$PROJECT_DIR$/solvers/question_2.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/solvers/sensitivity.py" beforeDir="false" afterPath="$PROJECT_DIR$/solvers/sensitivity.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
