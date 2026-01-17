@@ -89,14 +89,17 @@ def generate_custom_course_data(total_points=2000):
 
         # C. 这一点的坡度 (自主设计)
         # 模拟：0-5km平路，5-10km上坡，10-15km下坡，15-20km起伏
+        # [修复] 坡度统一使用弧度制，与 load_real_course 保持一致
         dist_km = total_distance / 1000.0
-        slope = 0.0
+        slope_percent = 0.0
         if 5.0 <= dist_km < 10.0:
-            slope = 0.04  # 4% 上坡
+            slope_percent = 0.04  # 4% 上坡
         elif 10.0 <= dist_km < 15.0:
-            slope = -0.03  # 3% 下坡
+            slope_percent = -0.03  # 3% 下坡
         elif 15.0 <= dist_km < 20.0:
-            slope = 0.02 * np.sin(dist_km * 5)  # 起伏
+            slope_percent = 0.02 * np.sin(dist_km * 5)  # 起伏
+        # 转换为弧度: arctan(坡度百分比)
+        slope = np.arctan(slope_percent)
 
         course_list.append({
             'distance_from_start': total_distance,

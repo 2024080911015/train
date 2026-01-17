@@ -5,23 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="00c205ae-e2c1-4618-9e30-a331d1f2e5b7" name="Changes" comment="1">
-      <change afterPath="$PROJECT_DIR$/generate_custom_track.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/Q2_Final_Results.csv" beforeDir="false" afterPath="$PROJECT_DIR$/data/Q2_Final_Results.csv" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/images/Q1_Power_Profiles_Split_Gender.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/images/Q2_Designed_Course_Female_Sprinter.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/images/Q2_Designed_Course_Female_TT.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/images/Q2_Designed_Course_Male_Sprinter.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/images/Q2_Designed_Course_Male_TT.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/images/Q2_Flanders_WorldChamp_Female_Sprinter.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/images/Q2_Flanders_WorldChamp_Female_TT.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/images/Q2_Flanders_WorldChamp_Male_Sprinter.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/images/Q2_Flanders_WorldChamp_Male_TT.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/images/Q2_Tokyo_Olympic_Female_Sprinter.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/images/Q2_Tokyo_Olympic_Female_TT.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/images/Q2_Tokyo_Olympic_Male_Sprinter.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/images/Q2_Tokyo_Olympic_Male_TT.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/solvers/question_2.py" beforeDir="false" afterPath="$PROJECT_DIR$/solvers/question_2.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

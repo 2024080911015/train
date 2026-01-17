@@ -124,16 +124,17 @@ def plot_individual_result(rider, course_name, course_data, power_strategy, w_hi
     elevations = [0]
     curr_ele = 0
     for s in course_data:
-        curr_ele += s['length'] * np.tan(s['slope'])
+        # [修复] 坡度是弧度，垂直分量应使用 sin
+        curr_ele += s['length'] * np.sin(s['slope'])
         elevations.append(curr_ele)
     elevations = elevations[:-1]
 
-    # 对齐
-    min_len = min(len(distances), len(w_history), len(power_strategy))
-    distances = distances[:min_len]
-    w_history = w_history[:min_len]
-    power_strategy = power_strategy[:min_len]
-    elevations = elevations[:min_len]
+    # 对齐 (注意: w_history 长度是 n_segments + 1，取前 n_segments 个)
+    n_segments = len(course_data)
+    distances = distances[:n_segments]
+    w_history = w_history[:n_segments]  # 取每段开始时的 W' 值
+    power_strategy = power_strategy[:n_segments]
+    elevations = elevations[:n_segments]
 
     # 绘图
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10), sharex=True)

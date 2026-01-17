@@ -28,6 +28,9 @@ def run_simulated_annealing(cyclist, course_data):
     # 初始化仿真器
     sim = WPrimeBalanceSimulator(cyclist)
     n_segments = len(course_data)
+    
+    # [修复] 获取车手的实际最大功率，如果没有则默认1200W
+    p_max_limit = cyclist.p_max if cyclist.p_max else 1200
 
     # === 1. 初始化策略 ===
     # 策略初值设为 85% CP (保守策略，确保能跑完，不容易一开始就力竭)
@@ -64,8 +67,8 @@ def run_simulated_annealing(cyclist, course_data):
             # 比如 idx-1, idx, idx+1 都加上 change
             for k in range(max(0, idx - 1), min(n_segments, idx + 2)):
                 new_val = new_strategy[k] + change
-                # 限制功率范围 [0, P_max] (假设 P_max=1200)
-                new_strategy[k] = np.clip(new_val, 0, 1200)
+                # [修复] 使用车手实际的 P_max 限制功率范围
+                new_strategy[k] = np.clip(new_val, 0, p_max_limit)
 
             # --- B. 评估新解 ---
             new_score = objective_function(new_strategy, sim, course_data)

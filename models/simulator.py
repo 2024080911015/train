@@ -8,7 +8,8 @@ class WPrimeBalanceSimulator:
         # --- 1. 物理常数定义 ---
         self.g = 9.81
         self.rho = 1.225  # 空气密度 (kg/m^3)
-        self.cd_a = 0.32  # 风阻系数 x 迎风面积 (TT车手典型值)
+        # [修复] 使用车手自己的 CdA 参数，如果没有则默认 0.32
+        self.cd_a = getattr(self.cyclist, 'cd_area', 0.32)
 
         # [修复点] 这里统一命名为 mu_roll，防止报错
         self.mu_roll = 0.003  # 滚动阻力系数 (Rolling Resistance)
@@ -43,7 +44,8 @@ class WPrimeBalanceSimulator:
             # 异常情况(如陡坡功率不足)，给一个极小的非零速度防止除零
             v_phys = 0.1
         else:
-            v_phys = valid_v[0]
+            # [修复] 取最小的正实根（对应稳态速度）
+            v_phys = min(valid_v)
 
         # --- B. 求解安全极限 (急转弯限制) ---
         # 公式: v_safe <= sqrt(mu * g * R)
