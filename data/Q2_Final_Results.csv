@@ -1,13 +1,13 @@
 Course,Rider,Type,Gender,Time (s),Time (min)
-Designed_Course,Male TT,TT Specialist,Male,1781.57,29.69
-Designed_Course,Male Sprinter,Sprinter,Male,1876.8,31.28
-Designed_Course,Female TT,TT Specialist,Female,2003.41,33.39
-Designed_Course,Female Sprinter,Sprinter,Female,2259.1,37.65
-Tokyo_Olympic,Male TT,TT Specialist,Male,3842.12,64.04
-Tokyo_Olympic,Male Sprinter,Sprinter,Male,4039.4,67.32
-Tokyo_Olympic,Female TT,TT Specialist,Female,4475.81,74.6
-Tokyo_Olympic,Female Sprinter,Sprinter,Female,4895.2,81.59
-Flanders_WorldChamp,Male TT,TT Specialist,Male,5.78,0.1
-Flanders_WorldChamp,Male Sprinter,Sprinter,Male,6.32,0.11
-Flanders_WorldChamp,Female TT,TT Specialist,Female,6.65,0.11
-Flanders_WorldChamp,Female Sprinter,Sprinter,Female,5.89,0.1
+Designed_Course,Male TT,TT Specialist,Male,1813.99,30.23
+Designed_Course,Male Sprinter,Sprinter,Male,1935.67,32.26
+Designed_Course,Female TT,TT Specialist,Female,2048.56,34.14
+Designed_Course,Female Sprinter,Sprinter,Female,2228.8,37.15
+Tokyo_Olympic,Male TT,TT Specialist,Male,4103.32,68.39
+Tokyo_Olympic,Male Sprinter,Sprinter,Male,4461.46,74.36
+Tokyo_Olympic,Female TT,TT Specialist,Female,4773.54,79.56
+Tokyo_Olympic,Female Sprinter,Sprinter,Female,5150.12,85.84
+Flanders_WorldChamp,Male TT,TT Specialist,Male,5.85,0.1
+Flanders_WorldChamp,Male Sprinter,Sprinter,Male,5.78,0.1
+Flanders_WorldChamp,Female TT,TT Specialist,Female,5.72,0.1
+Flanders_WorldChamp,Female Sprinter,Sprinter,Female,5.85,0.1

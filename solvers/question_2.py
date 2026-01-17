@@ -15,48 +15,31 @@ from models.simulator import WPrimeBalanceSimulator
 from models.optimizer import run_simulated_annealing
 
 
-# === 2. 赛道生成与加载工具 ===
+# === 2. 赛道加载工具 ===
 
-def generate_designed_course():
+def load_custom_course_from_csv(csv_path):
     """
-    生成符合题目要求的'自选赛道' (Designed Course)。
-    特征：20km长，包含起伏，人为设置了 4 个急转弯。
+    加载由 generate_custom_track.py 生成的高精度赛道数据。
+    该 CSV 已包含计算好的 radius, slope, length，直接读取即可。
     """
-    segment_length = 100.0
-    num_segments = 200  # 20km
+    if not os.path.exists(csv_path):
+        print(f"Warning: Custom course file '{csv_path}' not found.")
+        return None
+
+    try:
+        df = pd.read_csv(csv_path)
+        print(f"Loaded custom course with {len(df)} segments.")
+    except Exception as e:
+        print(f"Error reading {csv_path}: {e}")
+        return None
 
     course_data = []
 
-    # 定义急转弯: (位置索引, 半径m)
-    # R=15m -> 安全速度上限 ≈ 10.8 m/s
-    sharp_turns = {
-        40: 15.0,  # 4km
-        90: 15.0,  # 9km
-        140: 15.0,  # 14km
-        190: 15.0  # 19km
-    }
-
-    for i in range(num_segments):
-        radius = 9999.0  # 默认为直道
-        slope = 0.0
-
-        # --- 地形设计 (起伏) ---
-        if 50 <= i < 100:
-            slope = 0.04  # 上坡
-        elif 100 <= i < 150:
-            slope = -0.04  # 下坡
-        elif 150 <= i < 200:
-            slope = 0.02 * np.sin(i / 10.0)  # 起伏
-
-        # --- 急弯插入 ---
-        if i in sharp_turns:
-            radius = sharp_turns[i]
-            slope = 0.0  # 弯道通常较平
-
+    for _, row in df.iterrows():
         course_data.append({
-            'length': segment_length,
-            'slope': slope,
-            'radius': radius
+            'length': row['length'],
+            'slope': row['slope'],
+            'radius': row['radius']
         })
 
     return course_data
@@ -64,7 +47,9 @@ def generate_designed_course():
 
 def load_real_course(csv_path):
     """
-    读取真实赛道 CSV 文件 (Tokyo / Flanders) 并处理。
+    [修改版] 读取真实赛道 CSV 文件 (Tokyo / Flanders)。
+    **已移除自动插值逻辑**：直接按 CSV 中的行读取分段。
+    请确保 CSV 文件中的点足够密集（例如每 100m 一个点）。
     CSV 格式需为: distance, elevation
     """
     if not os.path.exists(csv_path):
@@ -73,14 +58,16 @@ def load_real_course(csv_path):
 
     try:
         df = pd.read_csv(csv_path)
+        # 确保按距离排序
+        df = df.sort_values(by='distance').reset_index(drop=True)
     except Exception as e:
         print(f"Error reading {csv_path}: {e}")
         return None
 
     course_data = []
 
-    # 遍历数据点计算坡度
-    # 假设 CSV 数据点够密集，或者你需要在这里做插值(Interpolation)
+    # === 直接读取 CSV 分段 ===
+    # 遍历每一行，计算与下一行的差值作为一段
     for i in range(len(df) - 1):
         dist_curr = df.iloc[i]['distance']
         elev_curr = df.iloc[i]['elevation']
@@ -89,13 +76,15 @@ def load_real_course(csv_path):
         elev_next = df.iloc[i + 1]['elevation']
 
         length = dist_next - dist_curr
-        if length <= 0: continue
+
+        # 忽略距离极小或为0的段（防止除零错误）
+        if length <= 0.001:
+            continue
 
         # 计算坡度 (弧度)
         slope = np.arctan((elev_next - elev_curr) / length)
 
-        # 真实数据 CSV 通常没有半径信息，默认设为直道
-        # *进阶*: 如果你想在东京赛道增加急弯限制，可以在这里根据 distance 手动判断
+        # 真实赛道默认设为直道 (如果 CSV 里没有 radius 列)
         radius = 9999.0
 
         course_data.append({
@@ -104,20 +93,18 @@ def load_real_course(csv_path):
             'radius': radius
         })
 
+    print(f"Loaded real course from {csv_path}: {len(course_data)} segments.")
     return course_data
 
 
-# === 3. 定义车手 (复用 Q1 定义) ===
+# === 3. 定义车手 ===
 def get_all_riders():
     """返回四类典型车手对象"""
     return [
-        # --- 男性车手 ---
         Cyclist("Male TT", "TT Specialist", "Male",
                 cp=400, w_prime=20000, mass=72, cd_area=0.23, p_max=1200),
         Cyclist("Male Sprinter", "Sprinter", "Male",
                 cp=340, w_prime=35000, mass=75, cd_area=0.28, p_max=1600),
-
-        # --- 女性车手 ---
         Cyclist("Female TT", "TT Specialist", "Female",
                 cp=260, w_prime=15000, mass=60, cd_area=0.20, p_max=900),
         Cyclist("Female Sprinter", "Sprinter", "Female",
@@ -128,10 +115,7 @@ def get_all_riders():
 # === 4. 绘图与可视化 ===
 
 def plot_individual_result(rider, course_name, course_data, power_strategy, w_history, total_time):
-    """
-    绘制单人策略结果并保存
-    文件名格式: Q2_{Course}_{RiderName}.png
-    """
+    """绘制单人策略结果并保存"""
     # 数据准备
     lengths = [s['length'] for s in course_data]
     distances = np.cumsum(lengths) / 1000.0  # km
@@ -144,7 +128,12 @@ def plot_individual_result(rider, course_name, course_data, power_strategy, w_hi
         elevations.append(curr_ele)
     elevations = elevations[:-1]
 
-    w_history = w_history[:len(distances)]
+    # 对齐
+    min_len = min(len(distances), len(w_history), len(power_strategy))
+    distances = distances[:min_len]
+    w_history = w_history[:min_len]
+    power_strategy = power_strategy[:min_len]
+    elevations = elevations[:min_len]
 
     # 绘图
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10), sharex=True)
@@ -154,20 +143,18 @@ def plot_individual_result(rider, course_name, course_data, power_strategy, w_hi
 
     ax1.set_ylabel('Power (Watts)', color=color_p, fontsize=12)
     ax1.plot(distances, power_strategy, color=color_p, label=f'{rider.name} Power', alpha=0.8, linewidth=1)
-    ax1.tick_params(axis='y', labelcolor=color_p)
     ax1.axhline(y=rider.cp, color='gray', linestyle='--', alpha=0.5, label='CP')
 
-    # 双轴显示海拔
+    # 双轴海拔
     ax1_ele = ax1.twinx()
     color_e = 'tab:green'
     ax1_ele.set_ylabel('Elevation (m)', color=color_e, fontsize=12)
     ax1_ele.fill_between(distances, min(elevations), elevations, color=color_e, alpha=0.2, label='Elevation')
-    ax1_ele.tick_params(axis='y', labelcolor=color_e)
 
-    # 标记急转弯 (仅当赛道中有设定急弯时)
-    sharp_turn_indices = [i for i, s in enumerate(course_data) if s['radius'] < 100]
+    # 标记急弯 (R < 100m)
+    sharp_turn_indices = [i for i, s in enumerate(course_data) if s['radius'] < 100 and i < len(distances)]
     for idx in sharp_turn_indices:
-        ax1.axvline(x=distances[idx], color='red', linestyle=':', alpha=0.5)
+        ax1.axvline(x=distances[idx], color='red', linestyle=':', alpha=0.3)
 
     ax1.set_title(f"Course: {course_name} | Rider: {rider.name} | Time: {total_time:.0f}s ({total_time / 60:.1f}min)",
                   fontsize=14)
@@ -179,18 +166,17 @@ def plot_individual_result(rider, course_name, course_data, power_strategy, w_hi
     ax2.set_ylabel("W' Balance (Joules)", color=color_w, fontsize=12)
     ax2.plot(distances, w_history, color=color_w, label="W' Balance", linewidth=2)
     ax2.fill_between(distances, 0, w_history, color=color_w, alpha=0.1)
-    ax2.axhline(y=0, color='red', linewidth=1)  # 力竭线
+    ax2.axhline(y=0, color='red', linewidth=1)
     ax2.legend(loc='upper right')
     ax2.grid(True, alpha=0.3)
 
     plt.tight_layout()
 
-    # 保存图片
+    # 保存
     output_dir = os.path.join(project_root, 'images')
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    # 文件名处理
     safe_course = course_name.replace(" ", "_")
     safe_rider = rider.name.replace(" ", "_")
     filename = f'Q2_{safe_course}_{safe_rider}.png'
@@ -210,46 +196,45 @@ def solve_q2():
     riders = get_all_riders()
     print(f"Loaded {len(riders)} riders.")
 
-    # 2. 定义所有赛道
-    # 字典列表结构：{'name': 显示名称, 'data': 赛道数据列表}
+    # 2. 定义赛道列表
     courses = []
 
-    # (A) 自选赛道
-    print("Generating Designed Course...")
-    courses.append({
-        'name': 'Designed_Course',
-        'data': generate_designed_course()
-    })
+    # (A) 加载自主设计的赛道 (course_custom.csv)
+    custom_path = os.path.join(project_root, 'data', 'course_custom.csv')
+    print(f"Loading Custom Course from {custom_path}...")
+    custom_data = load_custom_course_from_csv(custom_path)
 
-    # (B) 东京奥运会赛道 (需确保文件存在)
+    if custom_data:
+        courses.append({'name': 'Designed_Custom_Track', 'data': custom_data})
+    else:
+        print("Skipping Custom Track (File not found or error).")
+
+    # (B) 加载真实赛道 (Tokyo / Flanders)
+    # 直接读取文件，不进行插值
     tokyo_path = os.path.join(project_root, 'data', 'course_tokyo.csv')
     tokyo_data = load_real_course(tokyo_path)
     if tokyo_data:
         courses.append({'name': 'Tokyo_Olympic', 'data': tokyo_data})
-        print(f"Loaded Tokyo Course: {len(tokyo_data)} segments")
 
-    # (C) 比利时赛道 (需确保文件存在)
     flanders_path = os.path.join(project_root, 'data', 'course_flanders.csv')
     flanders_data = load_real_course(flanders_path)
     if flanders_data:
         courses.append({'name': 'Flanders_WorldChamp', 'data': flanders_data})
-        print(f"Loaded Flanders Course: {len(flanders_data)} segments")
 
-    # 3. 双层循环：遍历赛道 -> 遍历车手
+    # 3. 开始优化循环
     results = []
 
     for course in courses:
         c_name = course['name']
         c_data = course['data']
         print(f"\n==========================================")
-        print(f"Processing Course: {c_name}")
+        print(f"Processing Course: {c_name} (Segments: {len(c_data)})")
         print(f"==========================================")
 
         for rider in riders:
             print(f"\n--- Optimizing for {rider.name} ({rider.rider_type}) ---")
 
             # A. 运行模拟退火
-            # 注意：真实赛道可能很长，initial_guess 可以优化
             best_strategy, best_time = run_simulated_annealing(rider, c_data)
             print(f"  > Best Time: {best_time:.2f} s")
 
@@ -270,20 +255,18 @@ def solve_q2():
                 "Time (min)": round(best_time / 60, 2)
             })
 
-    # 4. 打印最终对比表
+    # 4. 打印最终结果
     print("\n=== Final Results Summary ===")
     if results:
         df_res = pd.DataFrame(results)
-        # 调整列顺序
         df_res = df_res[["Course", "Rider", "Type", "Gender", "Time (s)", "Time (min)"]]
         print(df_res)
 
-        # 保存汇总 CSV
         csv_out = os.path.join(project_root, 'data', 'Q2_Final_Results.csv')
         df_res.to_csv(csv_out, index=False)
         print(f"\nSummary saved to: {csv_out}")
     else:
-        print("No results generated.")
+        print("No courses loaded.")
 
 
 if __name__ == "__main__":
