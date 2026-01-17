@@ -1,18 +1,23 @@
 import numpy as np
 
+
 class WPrimeBalanceSimulator:
     def __init__(self, cyclist):
         self.cyclist = cyclist
+
+        # --- 1. 物理常数定义 ---
         self.g = 9.81
-        self.rho = 1.225  # 空气密度 kg/m^3
+        self.rho = 1.225  # 空气密度 (kg/m^3)
         self.cd_a = 0.32  # 风阻系数 x 迎风面积 (TT车手典型值)
-        self.mu = 0.003  # 滚动阻力系数
-        self.mass = 80.0  # 人车总重量 kg
-        # --- 车手参数补充 ---
-        # 如果 cyclist 对象里没有 mass 属性，给一个默认值
-        # TT车手通常较重(如Wout: 78kg)，爬坡手较轻(如65kg)
+
+        # [修复点] 这里统一命名为 mu_roll，防止报错
+        self.mu_roll = 0.003  # 滚动阻力系数 (Rolling Resistance)
+        self.mu_tire = 0.8  # 轮胎侧向摩擦系数 (用于急弯限制)
+
+        # --- 2. 质量计算 ---
+        # 尝试从车手对象获取体重，如果没有则默认 75kg
         self.mass = getattr(self.cyclist, 'mass', 75.0)
-        # 人车总质量 (车重约 8kg)
+        # 人车总质量 (假设车重 8kg)
         self.total_mass = self.mass + 8.0
 
     def solve_velocity_with_limit(self, power, slope, radius):
@@ -23,6 +28,7 @@ class WPrimeBalanceSimulator:
         # --- A. 求解物理动力学方程 (A*v^3 + B*v - P = 0) ---
         # 1. 准备系数
         A = 0.5 * self.rho * self.cd_a
+        # [使用 mu_roll] 重力分量 + 滚动阻力分量
         B = self.total_mass * self.g * (np.sin(slope) + self.mu_roll * np.cos(slope))
         C = -power
 
@@ -54,8 +60,8 @@ class WPrimeBalanceSimulator:
     def run_segment_simulation(self, power_strategy, course_data):
         """
         运行整场比赛的仿真
-        :param power_strategy: 每一段的目标功率列表 (List or Array)
-        :param course_data: 赛道数据列表 [{'length': 100, 'slope': 0.05, 'radius': 999}, ...]
+        :param power_strategy: 每一段的目标功率列表
+        :param course_data: 赛道数据列表
         :return: (total_time, w_history, is_exhausted)
         """
         current_w = self.cyclist.w_prime
@@ -64,7 +70,6 @@ class WPrimeBalanceSimulator:
         is_exhausted = False
 
         # 预计算相对 CP (W/kg)，用于恢复公式
-        # 注意: 论文中的恢复公式是基于 W/kg 的
         cp_rel = self.cyclist.cp / self.mass
 
         for i, p in enumerate(power_strategy):
@@ -82,22 +87,17 @@ class WPrimeBalanceSimulator:
             # 3. 生理层：计算 W' 变化
             if p > self.cyclist.cp:
                 # [消耗阶段] P > CP
-                # 消耗量 = (P - CP) * 时间
                 loss = (p - self.cyclist.cp) * dt
                 current_w -= loss
             else:
-                # [恢复阶段] P < CP
-                # 使用 Feng et al. (2022) 的线性恢复模型逻辑
-                # 公式推导: 恢复率(W/kg) = CP_rel - (0.0879 * P_rel + 2.9214)
-                # (注意：如果计算结果 < 0，说明虽然 P<CP 但仍无法恢复，通常发生在接近 CP 时)
-
+                # [恢复阶段] P < CP (使用线性恢复模型)
                 p_rel = p / self.mass
+                # 恢复率公式: CP_rel - (0.0879 * P_rel + 2.9214)
                 recovery_rate_rel = cp_rel - (0.0879 * p_rel + 2.9214)
 
                 if recovery_rate_rel > 0:
                     recovery_joules = recovery_rate_rel * self.mass * dt
                     current_w += recovery_joules
-                # else: 恢复率为负或零，不恢复也不消耗(简化处理)
 
             # 4. 边界检查
             if current_w > self.cyclist.w_prime:
