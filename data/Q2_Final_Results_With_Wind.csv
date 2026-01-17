@@ -1,0 +1,25 @@
+Condition,Course,Rider,Time (min),Exhausted
+No Wind,Designed_Custom_Track,Male TT,26.3,False
+Wind 16km/h,Designed_Custom_Track,Male TT,34.14,True
+No Wind,Designed_Custom_Track,Male Sprinter,29.37,False
+Wind 16km/h,Designed_Custom_Track,Male Sprinter,39.57,True
+No Wind,Designed_Custom_Track,Female TT,29.46,False
+Wind 16km/h,Designed_Custom_Track,Female TT,39.27,True
+No Wind,Designed_Custom_Track,Female Sprinter,32.98,False
+Wind 16km/h,Designed_Custom_Track,Female Sprinter,45.57,True
+No Wind,Tokyo_Olympic,Male TT,65.61,False
+Wind 16km/h,Tokyo_Olympic,Male TT,101.84,True
+No Wind,Tokyo_Olympic,Male Sprinter,72.41,False
+Wind 16km/h,Tokyo_Olympic,Male Sprinter,128.54,True
+No Wind,Tokyo_Olympic,Female TT,36.58,False
+Wind 16km/h,Tokyo_Olympic,Female TT,58.38,True
+No Wind,Tokyo_Olympic,Female Sprinter,40.47,False
+Wind 16km/h,Tokyo_Olympic,Female Sprinter,104.35,True
+No Wind,Flanders_WorldChamp,Male TT,51.39,False
+Wind 16km/h,Flanders_WorldChamp,Male TT,68.3,True
+No Wind,Flanders_WorldChamp,Male Sprinter,57.89,False
+Wind 16km/h,Flanders_WorldChamp,Male Sprinter,80.31,True
+No Wind,Flanders_WorldChamp,Female TT,39.52,False
+Wind 16km/h,Flanders_WorldChamp,Female TT,53.52,True
+No Wind,Flanders_WorldChamp,Female Sprinter,44.34,False
+Wind 16km/h,Flanders_WorldChamp,Female Sprinter,63.48,True

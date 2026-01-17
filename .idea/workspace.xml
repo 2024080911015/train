@@ -6,13 +6,12 @@
   <component name="ChangeListManager">
     <list default="true" id="00c205ae-e2c1-4618-9e30-a331d1f2e5b7" name="Changes" comment="1">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/Q2_Final_Results.csv" beforeDir="false" afterPath="$PROJECT_DIR$/data/Q2_Final_Results.csv" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/images/Q2_Combined_Comparison.png" beforeDir="false" afterPath="$PROJECT_DIR$/images/Q2_Combined_Comparison.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/images/Q2_Designed_Custom_Track_power_comparison.png" beforeDir="false" afterPath="$PROJECT_DIR$/images/Q2_Designed_Custom_Track_power_comparison.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/images/Q2_Flanders_WorldChamp_power_comparison.png" beforeDir="false" afterPath="$PROJECT_DIR$/images/Q2_Flanders_WorldChamp_power_comparison.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/images/Q2_Tokyo_Olympic_power_comparison.png" beforeDir="false" afterPath="$PROJECT_DIR$/images/Q2_Tokyo_Olympic_power_comparison.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/images/Q1_Power_Profiles_Split_Gender.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/images/Q2_Combined_Comparison.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/images/Q2_Designed_Custom_Track_power_comparison.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/images/Q2_Flanders_WorldChamp_power_comparison.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/images/Q2_Tokyo_Olympic_power_comparison.png" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/models/optimizer.py" beforeDir="false" afterPath="$PROJECT_DIR$/models/optimizer.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/simulator.py" beforeDir="false" afterPath="$PROJECT_DIR$/models/simulator.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/solvers/question_2.py" beforeDir="false" afterPath="$PROJECT_DIR$/solvers/question_2.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -31,6 +30,18 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
+  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
+  "lastFilter": {
+    "state": "OPEN",
+    "assignee": "2024080911015"
+  }
+}]]></component>
+  <component name="GithubPullRequestsUISettings"><![CDATA[{
+  "selectedUrlAndAccountId": {
+    "url": "https://github.com/2024080911015/train.git",
+    "accountId": "b6ea9a56-2a9d-4bca-a767-21076e78d7d4"
+  }
+}]]></component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 4
 }</component>

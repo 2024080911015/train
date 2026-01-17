@@ -3,8 +3,9 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
+from scipy.interpolate import interp1d
 
-# === 1. 路径设置，确保能导入 models ===
+# === 路径设置 ===
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(current_dir)
 if project_root not in sys.path:
@@ -12,489 +13,392 @@ if project_root not in sys.path:
 
 from models.cyclist import Cyclist
 from models.simulator import WPrimeBalanceSimulator
-from models.optimizer import run_simulated_annealing
+from models.optimizer import run_simulated_annealing  # 确保导入的是修改后的版本
 
 
-# === 2. 赛道加载工具 ===
-
+# === 数据加载函数 (保持不变) ===
 def load_custom_course_from_csv(csv_path):
-    """
-    加载由 generate_custom_track.py 生成的高精度赛道数据。
-    该 CSV 已包含计算好的 radius, slope, length，直接读取即可。
-    """
-    if not os.path.exists(csv_path):
-        print(f"Warning: Custom course file '{csv_path}' not found.")
-        return None
-
-    try:
-        df = pd.read_csv(csv_path)
-        print(f"Loaded custom course with {len(df)} segments.")
-    except Exception as e:
-        print(f"Error reading {csv_path}: {e}")
-        return None
-
+    if not os.path.exists(csv_path): return None
+    df = pd.read_csv(csv_path)
     course_data = []
-
     for _, row in df.iterrows():
-        course_data.append({
-            'length': row['length'],
-            'slope': row['slope'],
-            'radius': row['radius']
-        })
-
+        course_data.append({'length': row['length'], 'slope': row['slope'], 'radius': row['radius']})
     return course_data
-
-
-import numpy as np
-import pandas as pd
-from scipy.interpolate import interp1d
 
 
 def load_real_course(csv_path, step_size=100.0):
-    """
-    读取粗糙的 CSV 并通过线性插值将其转换为高精度的每 100米 一段的数据。
-    :param step_size: 插值步长，默认 100米
-    """
-    if not os.path.exists(csv_path):
-        print(f"Warning: File {csv_path} not found.")
-        return None
-
+    if not os.path.exists(csv_path): return None
     df = pd.read_csv(csv_path)
-
-    # 1. 获取原始的距离(x)和海拔(y)
     original_dist = df['distance'].values
     original_elev = df['elevation'].values
-
-    # 2. 创建新的高精度距离轴 (0, 100, 200, ..., End)
     total_len = original_dist[-1]
     new_dist = np.arange(0, total_len, step_size)
-
-    # 3. 线性插值计算对应的海拔
     f_interp = interp1d(original_dist, original_elev, kind='linear')
     new_elev = f_interp(new_dist)
-
-    # 4. 构建分段数据 (segment)
     course_data = []
     for i in range(len(new_dist) - 1):
         length = new_dist[i + 1] - new_dist[i]
-
-        # 计算坡度: (海拔差 / 距离差) 的反正切
         elev_diff = new_elev[i + 1] - new_elev[i]
         slope = np.arctan(elev_diff / length)
-
-        # 简单处理：真实赛道如果有急弯，建议手动在 CSV 里标记
-        # 这里默认给一个大半径（直道）
-        radius = 9999.0
-
-        course_data.append({
-            'length': length,
-            'slope': slope,
-            'radius': radius,
-            'elevation_start': new_elev[i]  # 仅供绘图参考
-        })
-
-    print(f"Course loaded & interpolated: {len(course_data)} segments (from {len(df)} points).")
+        course_data.append({'length': length, 'slope': slope, 'radius': 9999.0, 'elevation_start': new_elev[i]})
     return course_data
 
 
-# === 3. 定义车手 ===
 def get_all_riders():
-    """返回四类典型车手对象"""
     return [
-        Cyclist("Male TT", "TT Specialist", "Male",
-                cp=400, w_prime=20000, mass=72, cd_area=0.23, p_max=1200),
-        Cyclist("Male Sprinter", "Sprinter", "Male",
-                cp=340, w_prime=35000, mass=75, cd_area=0.28, p_max=1600),
-        Cyclist("Female TT", "TT Specialist", "Female",
-                cp=260, w_prime=15000, mass=60, cd_area=0.20, p_max=900),
-        Cyclist("Female Sprinter", "Sprinter", "Female",
-                cp=220, w_prime=25000, mass=62, cd_area=0.24, p_max=1100)
+        Cyclist("Male TT", "TT Specialist", "Male", cp=400, w_prime=20000, mass=72, cd_area=0.23, p_max=1200),
+        Cyclist("Male Sprinter", "Sprinter", "Male", cp=340, w_prime=35000, mass=75, cd_area=0.28, p_max=1600),
+        Cyclist("Female TT", "TT Specialist", "Female", cp=260, w_prime=15000, mass=60, cd_area=0.20, p_max=900),
+        Cyclist("Female Sprinter", "Sprinter", "Female", cp=220, w_prime=25000, mass=62, cd_area=0.24, p_max=1100)
     ]
 
 
-# === 4. 绘图与可视化 ===
+# === 绘图函数 ===
+RIDER_COLORS = {'Male TT': 'tab:blue', 'Male Sprinter': 'navy', 'Female TT': 'tab:red', 'Female Sprinter': 'darkred'}
+RIDER_LINESTYLES = {'Male TT': '-', 'Male Sprinter': '--', 'Female TT': '-', 'Female Sprinter': '--'}
 
-# 定义4个选手的颜色方案
-RIDER_COLORS = {
-    'Male TT': 'tab:blue',
-    'Male Sprinter': 'navy',
-    'Female TT': 'tab:red',
-    'Female Sprinter': 'darkred'
-}
 
-RIDER_LINESTYLES = {
-    'Male TT': '-',
-    'Male Sprinter': '--',
-    'Female TT': '-',
-    'Female Sprinter': '--'
-}
+
+def reconstruct_simulation_traces(rider, course_data, power_strategy, wind_speed=0):
+    """
+    Re-run simulation to get detailed traces for plotting: Power, Speed, Time over distance.
+    Returns: (distances, velocities, times) arrays corresponding to segment boundaries.
+    """
+    sim = WPrimeBalanceSimulator(rider)
+    current_w = sim.cyclist.w_prime
+    total_time = 0.0
+    v_curr = 0.1
+    is_exhausted = False
+    DX_STEP = 50.0
+
+    distances = [0.0]
+    velocities = [v_curr]
+    times = [0.0]
+    
+    current_dist = 0.0
+
+    for i, segment in enumerate(course_data):
+        p_target = power_strategy[i] if i < len(power_strategy) else power_strategy[-1]
+        if is_exhausted:
+            p_target = sim.cyclist.cp * 0.5
+        
+        seg_len = segment['length']
+        slope = segment['slope']
+        radius = segment['radius']
+
+        dist_covered = 0.0
+        while dist_covered < seg_len:
+            dx = min(DX_STEP, seg_len - dist_covered)
+            
+            # Physics
+            v_air = v_curr + wind_speed
+            f_drag = 0.5 * sim.rho * sim.cd_a * (v_air ** 2)
+            f_grav = sim.total_mass * sim.g * np.sin(slope)
+            f_roll = sim.total_mass * sim.g * sim.mu_roll * np.cos(slope)
+            f_resist = f_drag + f_grav + f_roll
+            
+            if v_curr < 0.1: v_curr = 0.1
+            f_prop = p_target / v_curr
+            acc = (f_prop - f_resist) / sim.total_mass
+            
+            v_next_sq = v_curr ** 2 + 2 * acc * dx
+            v_curr = np.sqrt(v_next_sq) if v_next_sq > 0.1 else 0.1
+            
+            if radius < 100:
+                v_limit = np.sqrt(sim.mu_tire * sim.g * radius)
+                v_curr = min(v_curr, v_limit)
+                
+            dt = dx / v_curr
+            total_time += dt
+
+            # W' Balance
+            if p_target > sim.cyclist.cp:
+                loss = (p_target - sim.cyclist.cp) * dt
+                current_w -= loss
+            else:
+                rec_rate = (sim.cyclist.cp - p_target)
+                current_w += rec_rate * dt * 0.5
+            
+            if current_w > sim.cyclist.w_prime: current_w = sim.cyclist.w_prime
+            if current_w < 0:
+                current_w = 0
+                is_exhausted = True
+
+            dist_covered += dx
+            
+        current_dist += seg_len
+        distances.append(current_dist)
+        velocities.append(v_curr)
+        times.append(total_time)
+        
+    return np.array(distances), np.array(velocities), np.array(times)
+
+def plot_wind_impact_vivid(course_name, rider_results):
+    """
+    Generate vivid comparison plots for each rider: Wind vs No Wind.
+    Top: Speed comparison (Area diff)
+    Bottom: Power comparison
+    """
+    for res_pair in rider_results:
+        # Group by rider to find pair (Wind vs NoWind)
+        pass # implemented in the main logic loop better
+
+def plot_rider_impact_detailed(course_name, rider, data_no_wind, data_wind):
+    dist_nw, vel_nw, time_nw = reconstruct_simulation_traces(rider, data_no_wind['course_data'], data_no_wind['power_strategy'], wind_speed=0)
+    dist_w, vel_w, time_w = reconstruct_simulation_traces(rider, data_wind['course_data'], data_wind['power_strategy'], wind_speed=16.0/3.6) # assuming 16km/h from context
+    
+    # Power strategies aligned with distance steps (segments)
+    # Strategy is per segment. Step plot logic needs alignment.
+    # reconstruct_simulation_traces returns len(course_data)+1 points.
+    
+    # Create aligned power arrays for plotting (step)
+    p_nw = np.array(data_no_wind['power_strategy'])
+    p_w = np.array(data_wind['power_strategy'])
+
+    # Convert to km and km/h
+    dist_km = dist_nw / 1000.0
+    vel_nw_kph = vel_nw * 3.6
+    vel_w_kph = vel_w * 3.6
+    
+    fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(12, 12), sharex=True)
+    
+    # 1. Power Comparison
+    # We use step plot logic
+    x_steps = dist_km[:-1] # Start of segments
+    # Actually step plot: 'post' means [i] applies to interval [i, i+1].
+    # But dist_km has N+1 points.
+    
+    # Let's use fill_between for power to show difference vivid
+    # But steps are tricky with fill_between. Interpolate or just step.
+    ax1.plot(dist_km[:-1], p_nw, label='No Wind Power', color='tab:blue', alpha=0.8)
+    ax1.plot(dist_km[:-1], p_w, label='Wind Power', color='tab:red', alpha=0.8, linestyle='--')
+    ax1.fill_between(dist_km[:-1], p_nw, p_w, where=(p_w > p_nw), color='red', alpha=0.1, interpolate=True, step='post')
+    ax1.fill_between(dist_km[:-1], p_nw, p_w, where=(p_w <= p_nw), color='blue', alpha=0.1, interpolate=True, step='post')
+    
+    ax1.set_ylabel('Power (Watts)')
+    ax1.set_title(f'Rider: {rider.name} - Power Strategy (Wind Impact)')
+    ax1.legend()
+    ax1.grid(True, alpha=0.3)
+    
+    # 2. Speed Comparison
+    ax2.plot(dist_km, vel_nw_kph, label='No Wind Speed', color='tab:blue')
+    ax2.plot(dist_km, vel_w_kph, label='Wind Speed (16km/h Headwind)', color='tab:red', linestyle='--')
+    
+    # Fill speed loss
+    ax2.fill_between(dist_km, vel_nw_kph, vel_w_kph, color='gray', alpha=0.2, label='Speed Loss')
+    
+    ax2.set_ylabel('Speed (km/h)')
+    ax2.set_title('Speed Profile')
+    ax2.legend()
+    ax2.grid(True, alpha=0.3)
+    
+    # 3. Time Gap Accumulation
+    # Time gap = Time_Wind - Time_NoWind (how much slower)
+    # Important: Times are simulated segment by segment.
+    # The arrays are aligned by segment index.
+    time_gap = time_w - time_nw
+    
+    ax3.plot(dist_km, time_gap, color='purple', label='Cumulative Time Loss', linewidth=2)
+    ax3.fill_between(dist_km, 0, time_gap, color='purple', alpha=0.1)
+    
+    ax3.set_ylabel('Time Loss (s)')
+    ax3.set_xlabel('Distance (km)')
+    ax3.set_title(f'Cumulative Time Loss (Total: {time_gap[-1]:.1f} s)')
+    ax3.grid(True, alpha=0.3)
+    
+    plt.tight_layout()
+    out_path = os.path.join(project_root, 'images', f'Q2_Impact_{course_name}_{rider.name.replace(" ", "_")}.png')
+    plt.savefig(out_path, dpi=150)
+    plt.close()
+    print(f"  > Generated Impact Plot: {out_path}")
 
 
 def plot_comparison_result(course_name, rider_results):
-    """
-    策略一：对比绘图 - 一张图展示4个选手的功率策略 (含海拔背景)
-    :param course_name: 赛道名称
-    :param rider_results: 列表，每个元素包含 {rider, course_data, power_strategy, w_history, total_time}
-    """
-    # [修改] 只创建一个大图，专注展示功率与地形
     fig, ax1 = plt.subplots(figsize=(16, 9))
 
-    # 用于记录时间结果
-    time_labels = []
+    # 背景
+    longest = max(rider_results, key=lambda r: sum(s['length'] for s in r['course_data']))
+    l_data = longest['course_data']
+    l_dist = np.insert(np.cumsum([s['length'] for s in l_data]) / 1000.0, 0, 0)
 
-    # === 1. 准备地形数据 (使用最长的赛道作为背景) ===
-    longest_result = max(rider_results, key=lambda r: sum(s['length'] for s in r['course_data']))
-    l_course_data = longest_result['course_data']
+    # 海拔
+    ax2 = ax1.twinx()
+    l_elev = [0]
+    curr = 0
+    for s in l_data:
+        curr += s['length'] * np.sin(s['slope'])
+        l_elev.append(curr)
+    ax2.fill_between(l_dist, min(l_elev), l_elev, color='#2ca02c', alpha=0.15, label='Elevation')
+    ax2.set_ylabel('Elevation (m)', color='#2ca02c')
 
-    l_lengths = [s['length'] for s in l_course_data]
-    l_distances = np.cumsum(l_lengths) / 1000.0  # km
-    l_distances = np.insert(l_distances, 0, 0) # 保留终点，长度为 N+1
+    # 功率曲线
+    for res in rider_results:
+        rider = res['rider']
+        p_strat = res['power_strategy']
+        dist = np.insert(np.cumsum([s['length'] for s in res['course_data']]) / 1000.0, 0, 0)
+        p_plot = np.append(p_strat, p_strat[-1]) if len(p_strat) > 0 else p_strat
+        n = min(len(dist), len(p_plot))
 
-    l_elevations = [0]
-    curr_ele = 0
-    for s in l_course_data:
-        curr_ele += s['length'] * np.sin(s['slope'])
-        l_elevations.append(curr_ele) # 长度为 N+1
-
-    # === 2. 绘制海拔背景 (右侧Y轴) ===
-    ax2_ele = ax1.twinx()
-    color_e = '#2ca02c' # 这里的绿色稍微深一点，更专业
-    ax2_ele.set_ylabel('Elevation (m)', color=color_e, fontsize=13, fontweight='bold')
-    ax2_ele.tick_params(axis='y', labelcolor=color_e)
-    
-    # 填充地形 (使用渐变绿色的感觉，通过alpha控制)
-    ax2_ele.fill_between(l_distances, min(l_elevations), l_elevations, 
-                         color=color_e, alpha=0.15, label='Elevation Profile')
-
-    # 标记急弯 (R < 100m) - 绘制在背景层
-    sharp_turn_indices = [i for i, s in enumerate(l_course_data) if s['radius'] < 100 and i < len(l_distances)]
-    for idx in sharp_turn_indices:
-        # 使用极细的红色虚线标记急弯
-        ax1.axvline(x=l_distances[idx], color='red', linestyle=':', alpha=0.15, linewidth=0.8)
-
-    # === 3. 绘制每个车手的功率曲线 ===
-    for result in rider_results:
-        rider = result['rider']
-        course_data = result['course_data']
-        power_strategy = result['power_strategy']
-        total_time = result['total_time']
-
-        # 数据准备
-        lengths = [s['length'] for s in course_data]
-        distances = np.cumsum(lengths) / 1000.0
-        distances = np.insert(distances, 0, 0) # 长度 N+1，包含终点
-
-        # 补齐功率数据，使长度也为 N+1，以便画完全程
-        if len(power_strategy) > 0:
-            power_strategy_plot = np.append(power_strategy, power_strategy[-1])
-        else:
-            power_strategy_plot = power_strategy
-
-        # 确保维度匹配 (安全校验)
-        n = min(len(distances), len(power_strategy_plot))
-        distances = distances[:n]
-        power_strategy_plot = power_strategy_plot[:n]
-
-        # 获取样式
+        # 区分有风/无风样式
+        is_wind = res['is_wind']
         color = RIDER_COLORS.get(rider.name, 'gray')
-        linestyle = RIDER_LINESTYLES.get(rider.name, '-')
+        ls = ':' if is_wind else RIDER_LINESTYLES.get(rider.name, '-')
+        label = f"{rider.name} {'(Wind Opt)' if is_wind else '(No Wind)'}"
+        alpha = 0.7 if is_wind else 1.0
 
-        # 标签包含时间 (格式: Name: MM.m min)
-        label_text = f"{rider.name} ({total_time/60:.1f} min)"
+        ax1.step(dist[:n], p_plot[:n], where='post', color=color, linestyle=ls, label=label, alpha=alpha, linewidth=2)
 
-        ax1.step(distances, power_strategy_plot, where='post', color=color, linestyle=linestyle,
-                 label=label_text, alpha=0.9, linewidth=1.5)
-
-    # === 4. 美化设置 ===
-    # [更新] 严格限制 X 轴范围，防止画出终点 (针对"终点之后的就不要画了")
-    ax1.set_xlim(0, l_distances[-1])
-
-    ax1.set_xlabel('Distance (km)', fontsize=13, fontweight='bold')
-    ax1.set_ylabel('Power Output (Watts)', fontsize=13, fontweight='bold')
-    ax1.set_title(f"Optimization Results: {course_name}\nPower Strategy Comparison",
-                  fontsize=16, fontweight='bold', pad=15)
-
-    # 启用更细致的网格
-    ax1.grid(True, which='major', linestyle='--', alpha=0.4, color='gray')
-    ax1.minorticks_on()
-    ax1.grid(True, which='minor', linestyle=':', alpha=0.2)
-
-    # 合并图例 (左侧Power和右侧Elevation)
-    lines_1, labels_1 = ax1.get_legend_handles_labels()
-    lines_2, labels_2 = ax2_ele.get_legend_handles_labels()
-
-    # 将图例放在底部，水平排列
-    ax1.legend(lines_1 + lines_2, labels_1 + labels_2,
-               loc='upper center', bbox_to_anchor=(0.5, -0.1),
-               ncol=5, frameon=True, fontsize=11,
-               shadow=True, fancybox=True, edgecolor='black')
+    ax1.set_title(f"Optimization: {course_name} (Re-optimized for Wind)", fontsize=16)
+    ax1.set_xlabel('Distance (km)')
+    ax1.set_ylabel('Power (Watts)')
+    ax1.grid(True, alpha=0.3)
+    ax1.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=4)
 
     plt.tight_layout()
-    # 调整布局留出底部图例空间
-    plt.subplots_adjust(bottom=0.15)
+    plt.subplots_adjust(bottom=0.2)
 
-    # 保存
-    output_dir = os.path.join(project_root, 'images')
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
-    safe_course = course_name.replace(" ", "_")
-    filename = f'Q2_{safe_course}_power_comparison.png'
-    save_path = os.path.join(output_dir, filename)
-
-    plt.savefig(save_path, dpi=200) # 提高DPI使图片更清晰
-    print(f"  -> Comparison graph saved: {filename}")
+    out = os.path.join(project_root, 'images', f'Q2_{course_name}_ReOptimized.png')
+    plt.savefig(out, dpi=200)
+    print(f"Saved: {out}")
     plt.close()
 
-    return time_labels
 
+def plot_combined_results(results_map):
+    fig, axes = plt.subplots(2, 1, figsize=(16, 14))
+    targets = ['Tokyo_Olympic', 'Flanders_WorldChamp']
 
-def plot_combined_results(results_by_course):
-    """
-    [修改] 绘制组合图：东京 (上) 和 比利时 (下) 在同一张图中
-    :param results_by_course: 字典 {'Tokyo_Olympic': [...], 'Flanders_WorldChamp': [...]}
-    """
-    fig, axes = plt.subplots(2, 1, figsize=(16, 14), sharex=False) # 必须足够大
-    
-    # 按照特定顺序绘图
-    target_courses = ['Tokyo_Olympic', 'Flanders_WorldChamp']
-    
-    for idx, course_name in enumerate(target_courses):
-        ax = axes[idx]
-        rider_results = results_by_course.get(course_name)
-        
-        if not rider_results:
-            ax.text(0.5, 0.5, f"No Data for {course_name}", ha='center')
-            continue
+    for i, name in enumerate(targets):
+        res_list = results_map.get(name)
+        if not res_list: continue
+        ax = axes[i]
 
-        # === 1. 准备地形背景 ===
-        longest_result = max(rider_results, key=lambda r: sum(s['length'] for s in r['course_data']))
-        l_course_data = longest_result['course_data']
-        
-        l_lengths = [s['length'] for s in l_course_data]
-        l_distances = np.cumsum(l_lengths) / 1000.0
-        l_distances = np.insert(l_distances, 0, 0)
-        
-        l_elevations = [0]
-        curr_ele = 0
-        for s in l_course_data:
-            curr_ele += s['length'] * np.sin(s['slope'])
-            l_elevations.append(curr_ele)
+        # 简单绘制逻辑，只为展示
+        longest = max(res_list, key=lambda r: sum(s['length'] for s in r['course_data']))
+        l_dist = np.insert(np.cumsum([s['length'] for s in longest['course_data']]) / 1000.0, 0, 0)
 
-        # === 2. 绘制海拔 (右轴) ===
-        ax_ele = ax.twinx()
-        color_e = '#2ca02c'
-        ax_ele.set_ylabel('Elevation (m)', color=color_e, fontsize=11, fontweight='bold')
-        ax_ele.tick_params(axis='y', labelcolor=color_e)
-        ax_ele.fill_between(l_distances, min(l_elevations), l_elevations, 
-                            color=color_e, alpha=0.15, label='Elevation')
-        
-        # 强制比利时与东京使用一致的相对海拔范围 [-200, 200]
-        # (之前用户撤销了，但为了“合起来”好看，通常推荐一致，这里先保持自动，如果需要一致请指示)
-        # ax_ele.set_ylim(-200, 200)
-
-        # 急弯标记
-        sharp_turn_indices = [i for i, s in enumerate(l_course_data) if s['radius'] < 100]
-        for si in sharp_turn_indices:
-             if si < len(l_distances):
-                ax.axvline(x=l_distances[si], color='red', linestyle=':', alpha=0.15, linewidth=0.8)
-
-        # === 3. 绘制功率曲线 ===
-        for res in rider_results:
+        for res in res_list:
             rider = res['rider']
             p_strat = res['power_strategy']
-            c_data = res['course_data']
-            
-            # 数据对齐
-            lens = [s['length'] for s in c_data]
-            dists = np.cumsum(lens) / 1000.0
-            dists = np.insert(dists, 0, 0)
-            
-            if len(p_strat) > 0:
-                p_plot = np.append(p_strat, p_strat[-1])
-            else:
-                p_plot = p_strat
+            dist = np.insert(np.cumsum([s['length'] for s in res['course_data']]) / 1000.0, 0, 0)
+            p_plot = np.append(p_strat, p_strat[-1]) if len(p_strat) > 0 else p_strat
+            n = min(len(dist), len(p_plot))
 
-            n = min(len(dists), len(p_plot))
-            ax.plot(dists[:n], p_plot[:n], 
-                    color=RIDER_COLORS.get(rider.name, 'gray'),
-                    linestyle=RIDER_LINESTYLES.get(rider.name, '-'),
-                    label=f"{rider.name} ({res['total_time']/60:.1f} min)",
-                    alpha=0.9, linewidth=1.5)
+            is_wind = res['is_wind']
+            c = RIDER_COLORS.get(rider.name, 'gray')
+            ls = ':' if is_wind else RIDER_LINESTYLES.get(rider.name, '-')
 
-        # === 4. 美化子图 ===
-        ax.set_xlim(0, l_distances[-1])
-        ax.set_ylabel('Power (Watts)', fontsize=12, fontweight='bold')
-        
-        # [修改] 根据索引添加 A/B 后缀
-        title_suffix = " (A)" if idx == 0 else " (B)"
-        ax.set_title(f"{course_name} Comparison{title_suffix}", fontsize=14, fontweight='bold')
-        
-        ax.grid(True, linestyle='--', alpha=0.4)
-        
-        # 图例: 放在右下角
-        lines1, labels1 = ax.get_legend_handles_labels()
-        lines2, labels2 = ax_ele.get_legend_handles_labels()
-        # [修改] loc='lower right' 放在右下角，通常赛段末尾冲刺功率高，右下角(低功率区)是空白的，不会遮挡数据
-        ax.legend(lines1 + lines2, labels1 + labels2, loc='lower right', fontsize=9, ncol=2, framealpha=0.9, edgecolor='gray')
+            ax.step(dist[:n], p_plot[:n], where='post', color=c, linestyle=ls, alpha=0.8)
 
-    axes[-1].set_xlabel('Distance (km)', fontsize=12, fontweight='bold')
-    
-    plt.tight_layout()
-    
-    # 保存大图
-    output_dir = os.path.join(project_root, 'images')
-    save_path = os.path.join(output_dir, 'Q2_Combined_Comparison.png')
-    plt.savefig(save_path, dpi=200)
-    print(f"  -> Combined graph saved: {save_path}")
+        ax.set_title(f"{name} (Solid=No Wind, Dotted=Wind Optimized)")
+        ax.set_xlim(0, l_dist[-1])
+
+    out = os.path.join(project_root, 'images', 'Q2_Combined_ReOptimized.png')
+    plt.savefig(out, dpi=200)
+    print(f"Saved: {out}")
     plt.close()
 
 
+# === 主逻辑 ===
 def solve_q2():
-    print("=== Running Question 2: Multi-Course Optimization ===")
+    print("=== Re-Running Q2: Optimization with & without Wind ===")
 
-    # ... (前略: 加载车手和赛道代码不变) ...
-    # 1. 加载所有车手
     riders = get_all_riders()
-    
-    # ... (中间: 加载数据代码不变) ... 
-    # 为了减少代码替换量，假设上下文已存在 custom_data, tokyo_data_full 等变量
-    # 我们这里直接使用之前定义的逻辑
-    # 注意：由于 replace_string 工具限制，必须匹配上下文。
-    # 我们重新构建 solve_q2 的后半部分调用逻辑
-    pass 
 
+    # 加载赛道
+    custom_data = load_custom_course_from_csv(os.path.join(project_root, 'data', 'course_custom.csv'))
+    tokyo_data = load_real_course(os.path.join(project_root, 'data', 'course_tokyo.csv'))
 
+    tokyo_female = []
+    if tokyo_data:
+        half = sum(s['length'] for s in tokyo_data) / 2
+        acc = 0
+        for s in tokyo_data:
+            if acc >= half: break
+            tokyo_female.append(s)
+            acc += s['length']
 
-# === 5. 主求解逻辑 ===
+    flanders_m = load_real_course(os.path.join(project_root, 'data', 'flanders_men.csv'))
+    flanders_f = load_real_course(os.path.join(project_root, 'data', 'flanders_women.csv'))
 
-def solve_q2():
-    print("=== Running Question 2: Multi-Course Optimization ===")
-
-    # 1. 加载所有车手
-    riders = get_all_riders()
-    print(f"Loaded {len(riders)} riders.")
-
-    # 2. 预加载赛道数据
-    # (A) 自主设计的赛道 (男女通用)
-    custom_path = os.path.join(project_root, 'data', 'course_custom.csv')
-    print(f"Loading Custom Course from {custom_path}...")
-    custom_data = load_custom_course_from_csv(custom_path)
-
-    # (B) 东京奥运会赛道 (男子完整，女子取一半距离)
-    tokyo_path = os.path.join(project_root, 'data', 'course_tokyo.csv')
-    tokyo_data_full = load_real_course(tokyo_path)
-
-    # 计算女子赛道 (取前一半距离)
-    tokyo_data_female = None
-    if tokyo_data_full:
-        total_length = sum(s['length'] for s in tokyo_data_full)
-        half_length = total_length / 2.0
-        accumulated = 0
-        tokyo_data_female = []
-        for s in tokyo_data_full:
-            if accumulated >= half_length:
-                break
-            tokyo_data_female.append(s)
-            accumulated += s['length']
-        print(f"Tokyo Female course: {len(tokyo_data_female)} segments ({accumulated/1000:.1f} km)")
-
-    # (C) Flanders 赛道 (男女分别读取不同文件)
-    flanders_men_path = os.path.join(project_root, 'data', 'flanders_men.csv')
-    flanders_women_path = os.path.join(project_root, 'data', 'flanders_women.csv')
-    flanders_data_male = load_real_course(flanders_men_path)
-    flanders_data_female = load_real_course(flanders_women_path)
-
-    # 3. 开始优化循环
-    results = []
-
-    # 定义赛道配置：每个赛道根据性别选择不同数据
-    course_configs = [
-         {'name': 'Designed_Custom_Track', 'male': custom_data, 'female': custom_data},
-        {'name': 'Tokyo_Olympic', 'male': tokyo_data_full, 'female': tokyo_data_female},
-        {'name': 'Flanders_WorldChamp', 'male': flanders_data_male, 'female': flanders_data_female}
+    configs = [
+        {'name': 'Designed_Custom_Track', 'm': custom_data, 'f': custom_data},
+        {'name': 'Tokyo_Olympic', 'm': tokyo_data, 'f': tokyo_female},
+        {'name': 'Flanders_WorldChamp', 'm': flanders_m, 'f': flanders_f}
     ]
 
-    # 4. 合并绘图：东京和比利时放在一张大图中
-    # 收集特定赛道的数据
-    combined_plot_data = {}
-    target_names = ['Tokyo_Olympic', 'Flanders_WorldChamp']
-    
-    # 我们需要在循环外访问 rider_results_for_plot，所以需要上面的循环把数据存出来
-    # 由于原始结构是在循环里直接绘图清空，我们需要稍微改造一下存储结构。
-    
-    # 重新整理逻辑：我们创建一个全局字典来存储用于绘图的数据
-    all_courses_plot_data = {}
-    
-    for config in course_configs:
-        c_name = config['name']
-        print(f"\n{'='*50}")
-        print(f"Processing Course: {c_name}")
-        print(f"{'='*50}")
+    results_csv = []
+    plot_data_map = {}
 
-        # 收集该赛道所有选手的结果（用于对比绘图）
-        rider_results_for_plot = []
+    # 定义两种环境
+    conditions = [
+        {'label': 'No Wind', 'speed': 0.0},
+        {'label': 'Wind 16km/h', 'speed': 16.0 / 3.6}  # 4.44 m/s
+    ]
+
+    for conf in configs:
+        c_name = conf['name']
+        print(f"\nProcessing {c_name}...")
+        plot_list = []
 
         for rider in riders:
-            # 根据性别选择对应的赛道数据
-            c_data = config['male'] if rider.gender == 'Male' else config['female']
+            c_data = conf['m'] if rider.gender == 'Male' else conf['f']
+            if not c_data: continue
 
-            if c_data is None:
-                print(f"Skipping {c_name} for {rider.name} (data not available)")
-                continue
+            print(f"  Rider: {rider.name} ({rider.rider_type})")
 
-            print(f"\n--- Optimizing for {rider.name} ({rider.rider_type}) | Segments: {len(c_data)} ---")
+            for cond in conditions:
+                w_speed = cond['speed']
+                label = cond['label']
 
-            # A. 运行模拟退火
-            best_strategy, best_time = run_simulated_annealing(rider, c_data)
-            print(f"  > Best Time: {best_time:.2f} s ({best_time/60:.1f} min)")
+                # === 核心修改：针对当前风速，重新运行优化算法 ===
+                # 这会寻找专门适应这个风速的最佳策略
+                best_strategy, best_time = run_simulated_annealing(rider, c_data, wind_speed=w_speed)
 
-            # B. 结果回放
-            sim = WPrimeBalanceSimulator(rider)
-            _, w_history, _ = sim.run_segment_simulation(best_strategy, c_data)
+                # 记录用于绘图
+                plot_list.append({
+                    'rider': rider,
+                    'course_data': c_data,
+                    'power_strategy': best_strategy,
+                    'total_time': best_time,
+                    'is_wind': (w_speed > 0)
+                })
 
-            # C. 收集用于绘图的数据
-            rider_results_for_plot.append({
-                'rider': rider,
-                'course_data': c_data,
-                'power_strategy': best_strategy,
-                'w_history': w_history,
-                'total_time': best_time
-            })
+                # 记录到表格
+                results_csv.append({
+                    'Condition': label,
+                    'Course': c_name,
+                    'Rider': rider.name,
+                    'Time (s)': round(best_time, 2),
+                    'Time (min)': round(best_time / 60, 2)
+                })
 
-            # D. 收集结果数据
-            results.append({
-                "Course": c_name,
-                "Rider": rider.name,
-                "Type": rider.rider_type,
-                "Gender": rider.gender,
-                "Time (s)": round(best_time, 2),
-                "Time (min)": round(best_time / 60, 2)
-            })
+        plot_data_map[c_name] = plot_list
+        plot_comparison_result(c_name, plot_list)
 
-        # 存储该赛道的绘图数据
-        if rider_results_for_plot:
-            all_courses_plot_data[c_name] = rider_results_for_plot
-            # 原有的单张图绘制保留
-            print(f"\n--- Generating comparison plot for {c_name} ---")
-            plot_comparison_result(c_name, rider_results_for_plot)
-            
-    # [新增] 绘制合并的大图
-    print("\n--- Generating Combined Comparison Plot (Tokyo + Flanders) ---")
-    plot_combined_results(all_courses_plot_data)
+        # === 新增：为每位车手生成详细的风阻影响对比图 ===
+        rider_groups = {}
+        for p in plot_list:
+            r_name = p['rider'].name
+            if r_name not in rider_groups: rider_groups[r_name] = {}
+            if p['is_wind']:
+                rider_groups[r_name]['wind'] = p
+            else:
+                rider_groups[r_name]['no_wind'] = p
 
-    # 4. 打印最终结果
-    print("\n=== Final Results Summary ===")
-    if results:
-        df_res = pd.DataFrame(results)
-        df_res = df_res[["Course", "Rider", "Type", "Gender", "Time (s)", "Time (min)"]]
-        print(df_res)
+        for r_name, group in rider_groups.items():
+            if 'wind' in group and 'no_wind' in group:
+                print(f"  Generating vivid comparison chart for {r_name}...")
+                plot_rider_impact_detailed(c_name, group['no_wind']['rider'], group['no_wind'], group['wind'])
 
-        csv_out = os.path.join(project_root, 'data', 'Q2_Final_Results.csv')
-        df_res.to_csv(csv_out, index=False)
-        print(f"\nSummary saved to: {csv_out}")
-    else:
-        print("No courses loaded.")
+    plot_combined_results(plot_data_map)
+
+    df = pd.DataFrame(results_csv)
+    # 调整顺序
+    df = df[['Condition', 'Course', 'Rider', 'Time (s)', 'Time (min)']]
+    out_csv = os.path.join(project_root, 'data', 'Q2_Final_ReOptimized.csv')
+    df.to_csv(out_csv, index=False)
+    print(f"\nDone. Results saved to {out_csv}")
+    print(df)
 
 
 if __name__ == "__main__":
