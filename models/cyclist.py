@@ -1,51 +1,43 @@
 import numpy as np
-from scipy.stats import linregress
-from scipy.optimize import curve_fit
+
 
 class Cyclist:
-    def __init__(self, name, rider_type, gender, cp, w_prime, p_max=None):
+    def __init__(self, name, rider_type, gender, cp, w_prime, mass, cd_area, p_max=None):
+        """
+        初始化车手对象
+        :param name: 姓名/ID
+        :param rider_type: 类型 (TT Specialist / Sprinter)
+        :param gender: 性别 (Male / Female)
+        :param cp: 临界功率 Critical Power (Watts)
+        :param w_prime: 无氧做功容量 W' (Joules)
+        :param mass: 体重 (kg) -> 用于计算重力 F_gravity
+        :param cd_area: 风阻有效面积 CdA (m^2) -> 用于计算风阻 F_aero
+        :param p_max: 峰值功率 (Watts, 可选)
+        """
         self.name = name
         self.rider_type = rider_type
         self.gender = gender
-        self.cp = cp  # 临界功率 (Watts) [cite: 847]
-        self.w_prime = w_prime  # 无氧做功容量 (Joules) [cite: 847]
-        self.p_max = p_max  # 瞬间峰值功率 (Watts) [cite: 281]
+        self.cp = cp
+        self.w_prime = w_prime
+        self.mass = mass  # 新增参数
+        self.cd_area = cd_area  # 新增参数
+        self.p_max = p_max
+
     def get_theoretical_power(self, durations):
+        """
+        根据 CP 模型计算给定持续时间下的最大功率 P(t) = CP + W' / t
+        """
         durations = np.array(durations)
-        powers = self.cp + self.w_prime / durations
+        # 避免除以零
+        with np.errstate(divide='ignore'):
+            powers = self.cp + self.w_prime / durations
+
+        # 如果定义了 p_max，进行截断
+        if self.p_max:
+            powers = np.minimum(powers, self.p_max)
         return powers
+
     def __repr__(self):
-        return f"Cyclist({self.name} [{self.gender} {self.rider_type}]: CP={self.cp}W, W'={self.w_prime}J)"
-
-
-class PowerDurationModel:
-    @staticmethod
-    def fit_2_parameter_model(durations, powers):
-        """
-        基于双参数模型 P(t) = W'/t + CP 拟合数据 [cite: 16]
-        输入: durations (秒列表), powers (瓦特列表)
-        输出: cp, w_prime
-        """
-        # 线性化处理: Power = W' * (1/t) + CP
-        # y = mx + c  -> Power = W' * (1/Time) + CP
-        # 斜率是 W', 截距是 CP [cite: 448]
-
-        x = 1 / np.array(durations)
-        y = np.array(powers)
-
-        slope, intercept, r_value, p_value, std_err = linregress(x, y)
-
-        w_prime = slope
-        cp = intercept
-        return cp, w_prime
-
-    @staticmethod
-    def fit_apr_model(durations, powers, p_max):
-        """
-        针对短时间爆发的 APR 模型 (极端强度域) [cite: 281]
-        P(t) = P_3min + (P_max - P_3min) * e^(-k*t)
-        通常用于拟合 < 3分钟的数据
-        """
-        # 这里需要非线性最小二乘法 (scipy.optimize.curve_fit)
-        # 具体实现取决于题目给的数据点密度
-        pass
+        return (f"Cyclist({self.name}: {self.gender} {self.rider_type}, "
+                f"CP={self.cp}W, W'={self.w_prime}J, "
+                f"Mass={self.mass}kg, CdA={self.cd_area}m^2)")
