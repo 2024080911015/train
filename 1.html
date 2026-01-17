@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>闭合赛道可视化 (Closed Course Profile)</title>
+    <style>
+        body { background-color: #1e1e1e; color: white; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; }
+        canvas { background-color: #000; border: 1px solid #333; box-shadow: 0 0 20px rgba(0,0,0,0.5); margin-top: 20px; }
+        .legend { margin-top: 10px; display: flex; gap: 20px; font-size: 14px; }
+        .dot { width: 12px; height: 12px; display: inline-block; margin-right: 5px; border-radius: 50%; }
+        .info { margin-top: 10px; color: #888; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <h2>闭合赛道布局 (Rectangular Closed Loop)</h2>
+    <div class="legend">
+        <span><span class="dot" style="background:#32CD32"></span>平路 (Flat)</span>
+        <span><span class="dot" style="background:#FF4500"></span>爬坡 (Climb +4%/+8%)</span>
+        <span><span class="dot" style="background:#00BFFF"></span>下坡 (Descent -4%)</span>
+    </div>
+
+    <canvas id="trackCanvas" width="800" height="800"></canvas>
+    <p id="stats" class="info"></p>
+
+<script>
+    // === 1. 更新后的矩形闭合赛道数据 ===
+    // 逻辑：北 -> 东 -> 南 -> 西 -> 北 (顺时针闭合)
+    const trackData = [
+        {length: 5000.0, slope: 0.0, radius: 10000.0, desc: "Leg1_Flat_TT_North"},
+        {length: 31.416, slope: 0.0, radius: 20.0, desc: "Turn1_Right"}, // 90度弯
+        {length: 5000.0, slope: 0.04, radius: 10000.0, desc: "Leg2_Climb_East"},
+        {length: 31.416, slope: 0.0, radius: 20.0, desc: "Turn2_Right"},
+        {length: 5000.0, slope: -0.04, radius: 10000.0, desc: "Leg3_Descent_South"},
+        {length: 31.416, slope: 0.0, radius: 20.0, desc: "Turn3_Right"},
+        {length: 2000.0, slope: 0.0, radius: 10000.0, desc: "Leg4_Approach"},
+        {length: 500.0, slope: 0.08, radius: 10000.0, desc: "Leg4_The_Wall"}, // 陡坡墙
+        {length: 2500.0, slope: 0.0, radius: 10000.0, desc: "Leg4_Final_Sprint"},
+        {length: 31.416, slope: 0.0, radius: 20.0, desc: "Turn4_Close_Loop"}
+    ];
+
+    const canvas = document.getElementById('trackCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // === 2. 轨迹计算核心逻辑 ===
+    let points = [];
+    // 初始设置：从屏幕底部中心开始，向上(北)出发
+    // Canvas坐标系：Y向下。所以"北"是Y减小的方向 (-PI/2)
+    let x = 0, y = 0, heading = -Math.PI / 2;
+    const stepSize = 10; // 采样精度 (米)
+
+    points.push({x, y, slope: 0, desc: "Start", isTurn: false});
+
+    trackData.forEach(seg => {
+        let steps = Math.ceil(seg.length / stepSize);
+        // 如果是极短的弯道，增加采样密度以保证圆滑
+        if (seg.radius < 50) steps = 20;
+
+        let distStep = seg.length / steps;
+
+        // 判断是否为右转弯
+        // 我们的数据里全是 "Right" Turn
+        let isRightTurn = seg.desc.includes("Right") || seg.desc.includes("Loop");
+        let turnDirection = isRightTurn ? 1 : -1; // Canvas角度：顺时针增加为右转
+
+        for (let i = 0; i < steps; i++) {
+            let dTheta = 0;
+
+            if (seg.radius > 5000) {
+                // 直道
+                dTheta = 0;
+            } else {
+                // 弯道：计算角度变化
+                // Angle = ArcLength / Radius
+                let totalAngle = seg.length / seg.radius;
+                dTheta = (totalAngle / steps) * turnDirection;
+            }
+
+            heading += dTheta;
+            x += distStep * Math.cos(heading);
+            y += distStep * Math.sin(heading);
+
+            // 记录关键点信息
+            let isKeyPoint = (i === 0 && seg.radius > 5000); // 标记每段直道的开始
+            points.push({
+                x, y,
+                slope: seg.slope,
+                desc: seg.desc,
+                isTurn: seg.radius < 1000,
+                keyPoint: isKeyPoint
+            });
+        }
+    });
+
+    // === 3. 自动缩放与居中 ===
+    let minX = Math.min(...points.map(p => p.x));
+    let maxX = Math.max(...points.map(p => p.x));
+    let minY = Math.min(...points.map(p => p.y));
+    let maxY = Math.max(...points.map(p => p.y));
+
+    let rangeX = maxX - minX;
+    let rangeY = maxY - minY;
+
+    // 留出 80px 的边距
+    let padding = 80;
+    let availableW = canvas.width - padding * 2;
+    let availableH = canvas.height - padding * 2;
+
+    let scale = Math.min(availableW / rangeX, availableH / rangeY);
+
+    // 计算居中偏移量
+    let offsetX = padding + (availableW - rangeX * scale) / 2 - minX * scale;
+    let offsetY = padding + (availableH - rangeY * scale) / 2 - minY * scale;
+
+    // === 4. 绘图执行 ===
+    ctx.lineWidth = 6;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    // 绘制轨迹
+    for (let i = 0; i < points.length - 1; i++) {
+        let p1 = points[i];
+        let p2 = points[i+1];
+
+        ctx.beginPath();
+        ctx.moveTo(p1.x * scale + offsetX, p1.y * scale + offsetY);
+        ctx.lineTo(p2.x * scale + offsetX, p2.y * scale + offsetY);
+
+        // 颜色映射逻辑
+        if (p1.slope > 0.05) ctx.strokeStyle = '#8B0000'; // 陡坡 (深红)
+        else if (p1.slope > 0.01) ctx.strokeStyle = '#FF4500'; // 爬坡 (红)
+        else if (p1.slope < -0.01) ctx.strokeStyle = '#00BFFF'; // 下坡 (蓝)
+        else ctx.strokeStyle = '#32CD32'; // 平路 (绿)
+
+        ctx.stroke();
+    }
+
+    // === 5. 绘制标注 ===
+    function drawLabel(x, y, text, color="white", align="center") {
+        ctx.fillStyle = color;
+        ctx.font = "bold 14px Arial";
+        ctx.textAlign = align;
+        ctx.textBaseline = "middle";
+        ctx.shadowColor = "black";
+        ctx.shadowBlur = 4;
+        ctx.fillText(text, x, y);
+        ctx.shadowBlur = 0; // 重置
+    }
+
+    function drawMarker(idx, color, text) {
+        let p = points[idx];
+        let px = p.x * scale + offsetX;
+        let py = p.y * scale + offsetY;
+
+        // 画圆点
+        ctx.beginPath();
+        ctx.arc(px, py, 8, 0, Math.PI*2);
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.strokeStyle = "white";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // 智能调整文字位置，避免重叠
+        // 简单策略：向圆心外侧偏移
+        let labelX = px;
+        let labelY = py;
+
+        if (text === "Start/Finish") { labelY += 25; }
+        else if (text.includes("Climb")) { labelX += 15; labelY -= 15; ctx.textAlign = "left"; }
+        else if (text.includes("Wall")) { labelX -= 15; ctx.textAlign = "right"; }
+
+        drawLabel(labelX, labelY, text, "white", ctx.textAlign || "center");
+    }
+
+    // 标注起点/终点
+    drawMarker(0, "#FFFF00", "Start/Finish");
+
+    // 标注关键路段名称
+    // 我们只在每条边的中间位置标注，或者在特定事件点标注
+    points.forEach((p, i) => {
+        // 简单的过滤逻辑：只标注主要直段的开头
+        if (p.keyPoint) {
+            let px = p.x * scale + offsetX;
+            let py = p.y * scale + offsetY;
+
+            let label = "";
+            if (p.desc.includes("Climb")) label = "5km Climb (+4%)";
+            if (p.desc.includes("Descent")) label = "5km Descent (-4%)";
+            if (p.desc.includes("The_Wall")) label = "The Wall (+8%)";
+            if (p.desc.includes("Flat_TT")) label = "5km Flat TT";
+
+            if (label) {
+                // 计算该段的中点位置大概在哪里，为了美观，我们偏移一点
+                // 这里简单处理：直接画在路段起点旁边
+                let offset = 25;
+                if (label.includes("Flat")) { px -= offset; py -= offset; }
+                if (label.includes("Climb")) { px += offset; py -= offset; }
+                if (label.includes("Descent")) { px += offset; py += offset; }
+                if (label.includes("Wall")) { px -= offset; py += offset; }
+
+                drawLabel(px, py, label, "#ddd");
+            }
+        }
+    });
+
+    document.getElementById('stats').innerText = `Total Distance: ${(points.length * stepSize / 1000).toFixed(2)} km (Closed Loop)`;
+
+</script>
+</body>
+</html>

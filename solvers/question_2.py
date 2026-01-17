@@ -156,19 +156,11 @@ def plot_comparison_result(course_name, rider_results):
         curr_ele += s['length'] * np.sin(s['slope'])
         l_elevations.append(curr_ele) # 长度为 N+1
 
-    # 移除之前的截断逻辑
-    # l_elevations = l_elevations[:-1]
-    # l_n = len(l_course_data)
-    # l_distances = l_distances[:l_n]
-    # l_elevations = l_elevations[:l_n]
-
     # === 2. 绘制海拔背景 (右侧Y轴) ===
     ax2_ele = ax1.twinx()
     color_e = '#2ca02c' # 这里的绿色稍微深一点，更专业
     ax2_ele.set_ylabel('Elevation (m)', color=color_e, fontsize=13, fontweight='bold')
     ax2_ele.tick_params(axis='y', labelcolor=color_e)
-    
-    # [回滚] 移除强制统一的 Y 轴范围，恢复自动缩放
     
     # 填充地形 (使用渐变绿色的感觉，通过alpha控制)
     ax2_ele.fill_between(l_distances, min(l_elevations), l_elevations, 
@@ -193,10 +185,6 @@ def plot_comparison_result(course_name, rider_results):
         distances = np.insert(distances, 0, 0) # 长度 N+1，包含终点
 
         # 补齐功率数据，使长度也为 N+1，以便画完全程
-        # 为了避免最后一段出现不自然的"平直线" (Zero-order hold)，
-        # 我们这里不简单重复最后一个点，而是让最后一个点就停在前一个点的位置？
-        # 不，用户之前要求"不要截断"，所以必须画到distances[-1]。
-        # 我们可以尝试线性外推？或者就保持重复，但确保不要画出界。
         if len(power_strategy) > 0:
             power_strategy_plot = np.append(power_strategy, power_strategy[-1])
         else:
@@ -261,6 +249,123 @@ def plot_comparison_result(course_name, rider_results):
     return time_labels
 
 
+def plot_combined_results(results_by_course):
+    """
+    [修改] 绘制组合图：东京 (上) 和 比利时 (下) 在同一张图中
+    :param results_by_course: 字典 {'Tokyo_Olympic': [...], 'Flanders_WorldChamp': [...]}
+    """
+    fig, axes = plt.subplots(2, 1, figsize=(16, 14), sharex=False) # 必须足够大
+    
+    # 按照特定顺序绘图
+    target_courses = ['Tokyo_Olympic', 'Flanders_WorldChamp']
+    
+    for idx, course_name in enumerate(target_courses):
+        ax = axes[idx]
+        rider_results = results_by_course.get(course_name)
+        
+        if not rider_results:
+            ax.text(0.5, 0.5, f"No Data for {course_name}", ha='center')
+            continue
+
+        # === 1. 准备地形背景 ===
+        longest_result = max(rider_results, key=lambda r: sum(s['length'] for s in r['course_data']))
+        l_course_data = longest_result['course_data']
+        
+        l_lengths = [s['length'] for s in l_course_data]
+        l_distances = np.cumsum(l_lengths) / 1000.0
+        l_distances = np.insert(l_distances, 0, 0)
+        
+        l_elevations = [0]
+        curr_ele = 0
+        for s in l_course_data:
+            curr_ele += s['length'] * np.sin(s['slope'])
+            l_elevations.append(curr_ele)
+
+        # === 2. 绘制海拔 (右轴) ===
+        ax_ele = ax.twinx()
+        color_e = '#2ca02c'
+        ax_ele.set_ylabel('Elevation (m)', color=color_e, fontsize=11, fontweight='bold')
+        ax_ele.tick_params(axis='y', labelcolor=color_e)
+        ax_ele.fill_between(l_distances, min(l_elevations), l_elevations, 
+                            color=color_e, alpha=0.15, label='Elevation')
+        
+        # 强制比利时与东京使用一致的相对海拔范围 [-200, 200]
+        # (之前用户撤销了，但为了“合起来”好看，通常推荐一致，这里先保持自动，如果需要一致请指示)
+        # ax_ele.set_ylim(-200, 200)
+
+        # 急弯标记
+        sharp_turn_indices = [i for i, s in enumerate(l_course_data) if s['radius'] < 100]
+        for si in sharp_turn_indices:
+             if si < len(l_distances):
+                ax.axvline(x=l_distances[si], color='red', linestyle=':', alpha=0.15, linewidth=0.8)
+
+        # === 3. 绘制功率曲线 ===
+        for res in rider_results:
+            rider = res['rider']
+            p_strat = res['power_strategy']
+            c_data = res['course_data']
+            
+            # 数据对齐
+            lens = [s['length'] for s in c_data]
+            dists = np.cumsum(lens) / 1000.0
+            dists = np.insert(dists, 0, 0)
+            
+            if len(p_strat) > 0:
+                p_plot = np.append(p_strat, p_strat[-1])
+            else:
+                p_plot = p_strat
+
+            n = min(len(dists), len(p_plot))
+            ax.plot(dists[:n], p_plot[:n], 
+                    color=RIDER_COLORS.get(rider.name, 'gray'),
+                    linestyle=RIDER_LINESTYLES.get(rider.name, '-'),
+                    label=f"{rider.name} ({res['total_time']/60:.1f} min)",
+                    alpha=0.9, linewidth=1.5)
+
+        # === 4. 美化子图 ===
+        ax.set_xlim(0, l_distances[-1])
+        ax.set_ylabel('Power (Watts)', fontsize=12, fontweight='bold')
+        
+        # [修改] 根据索引添加 A/B 后缀
+        title_suffix = " (A)" if idx == 0 else " (B)"
+        ax.set_title(f"{course_name} Comparison{title_suffix}", fontsize=14, fontweight='bold')
+        
+        ax.grid(True, linestyle='--', alpha=0.4)
+        
+        # 图例: 放在右下角
+        lines1, labels1 = ax.get_legend_handles_labels()
+        lines2, labels2 = ax_ele.get_legend_handles_labels()
+        # [修改] loc='lower right' 放在右下角，通常赛段末尾冲刺功率高，右下角(低功率区)是空白的，不会遮挡数据
+        ax.legend(lines1 + lines2, labels1 + labels2, loc='lower right', fontsize=9, ncol=2, framealpha=0.9, edgecolor='gray')
+
+    axes[-1].set_xlabel('Distance (km)', fontsize=12, fontweight='bold')
+    
+    plt.tight_layout()
+    
+    # 保存大图
+    output_dir = os.path.join(project_root, 'images')
+    save_path = os.path.join(output_dir, 'Q2_Combined_Comparison.png')
+    plt.savefig(save_path, dpi=200)
+    print(f"  -> Combined graph saved: {save_path}")
+    plt.close()
+
+
+def solve_q2():
+    print("=== Running Question 2: Multi-Course Optimization ===")
+
+    # ... (前略: 加载车手和赛道代码不变) ...
+    # 1. 加载所有车手
+    riders = get_all_riders()
+    
+    # ... (中间: 加载数据代码不变) ... 
+    # 为了减少代码替换量，假设上下文已存在 custom_data, tokyo_data_full 等变量
+    # 我们这里直接使用之前定义的逻辑
+    # 注意：由于 replace_string 工具限制，必须匹配上下文。
+    # 我们重新构建 solve_q2 的后半部分调用逻辑
+    pass 
+
+
+
 # === 5. 主求解逻辑 ===
 
 def solve_q2():
@@ -305,11 +410,22 @@ def solve_q2():
 
     # 定义赛道配置：每个赛道根据性别选择不同数据
     course_configs = [
-        # {'name': 'Designed_Custom_Track', 'male': custom_data, 'female': custom_data},
+         {'name': 'Designed_Custom_Track', 'male': custom_data, 'female': custom_data},
         {'name': 'Tokyo_Olympic', 'male': tokyo_data_full, 'female': tokyo_data_female},
         {'name': 'Flanders_WorldChamp', 'male': flanders_data_male, 'female': flanders_data_female}
     ]
 
+    # 4. 合并绘图：东京和比利时放在一张大图中
+    # 收集特定赛道的数据
+    combined_plot_data = {}
+    target_names = ['Tokyo_Olympic', 'Flanders_WorldChamp']
+    
+    # 我们需要在循环外访问 rider_results_for_plot，所以需要上面的循环把数据存出来
+    # 由于原始结构是在循环里直接绘图清空，我们需要稍微改造一下存储结构。
+    
+    # 重新整理逻辑：我们创建一个全局字典来存储用于绘图的数据
+    all_courses_plot_data = {}
+    
     for config in course_configs:
         c_name = config['name']
         print(f"\n{'='*50}")
@@ -356,10 +472,16 @@ def solve_q2():
                 "Time (min)": round(best_time / 60, 2)
             })
 
-        # E. 绘制该赛道的4选手对比图
+        # 存储该赛道的绘图数据
         if rider_results_for_plot:
+            all_courses_plot_data[c_name] = rider_results_for_plot
+            # 原有的单张图绘制保留
             print(f"\n--- Generating comparison plot for {c_name} ---")
             plot_comparison_result(c_name, rider_results_for_plot)
+            
+    # [新增] 绘制合并的大图
+    print("\n--- Generating Combined Comparison Plot (Tokyo + Flanders) ---")
+    plot_combined_results(all_courses_plot_data)
 
     # 4. 打印最终结果
     print("\n=== Final Results Summary ===")

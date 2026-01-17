@@ -5,9 +5,14 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="00c205ae-e2c1-4618-9e30-a331d1f2e5b7" name="Changes" comment="1">
+      <change afterPath="$PROJECT_DIR$/1.html" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/construct.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/solvers/pl.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/images/Q2_Flanders_WorldChamp_comparison.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/images/Q2_Tokyo_Olympic_comparison.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/data/Q2_Final_Results.csv" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/data/course_custom.csv" beforeDir="false" afterPath="$PROJECT_DIR$/data/course_custom.csv" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/images/Q2_Flanders_WorldChamp_power_comparison.png" beforeDir="false" afterPath="$PROJECT_DIR$/images/Q2_Flanders_WorldChamp_power_comparison.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/images/Q2_Tokyo_Olympic_power_comparison.png" beforeDir="false" afterPath="$PROJECT_DIR$/images/Q2_Tokyo_Olympic_power_comparison.png" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/solvers/question_2.py" beforeDir="false" afterPath="$PROJECT_DIR$/solvers/question_2.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -18,6 +23,7 @@
   <component name="FileTemplateManagerImpl">
     <option name="RECENT_TEMPLATES">
       <list>
+        <option value="HTML File" />
         <option value="Python Script" />
       </list>
     </option>
@@ -33,20 +39,23 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
-    &quot;Python.generate_custom_track.executor&quot;: &quot;Run&quot;,
-    &quot;Python.question_1.executor&quot;: &quot;Run&quot;,
-    &quot;Python.question_2.executor&quot;: &quot;Run&quot;,
-    &quot;Python.simulator.executor&quot;: &quot;Run&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
-    &quot;last_opened_file_path&quot;: &quot;C:/Users/iiijj/PycharmProjects/PythonProject26/data&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "DefaultHtmlFileTemplate": "HTML File",
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "Python.construct.executor": "Run",
+    "Python.generate_custom_track.executor": "Run",
+    "Python.pl.executor": "Run",
+    "Python.question_1.executor": "Run",
+    "Python.question_2.executor": "Run",
+    "Python.simulator.executor": "Run",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "git-widget-placeholder": "main",
+    "last_opened_file_path": "C:/Users/iiijj/PycharmProjects/PythonProject26/data"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="C:\Users\iiijj\PycharmProjects\PythonProject26\data" />
