@@ -143,9 +143,9 @@ def plot_wind_impact_vivid(course_name, rider_results):
         # Group by rider to find pair (Wind vs NoWind)
         pass # implemented in the main logic loop better
 
-def plot_rider_impact_detailed(course_name, rider, data_no_wind, data_wind):
+def plot_rider_impact_detailed(course_name, rider, data_no_wind, data_wind, wind_speed=4.0/3.6):
     dist_nw, vel_nw, time_nw = reconstruct_simulation_traces(rider, data_no_wind['course_data'], data_no_wind['power_strategy'], wind_speed=0)
-    dist_w, vel_w, time_w = reconstruct_simulation_traces(rider, data_wind['course_data'], data_wind['power_strategy'], wind_speed=16.0/3.6) # assuming 16km/h from context
+    dist_w, vel_w, time_w = reconstruct_simulation_traces(rider, data_wind['course_data'], data_wind['power_strategy'], wind_speed=wind_speed)
     
     # Power strategies aligned with distance steps (segments)
     # Strategy is per segment. Step plot logic needs alignment.
@@ -211,6 +211,33 @@ def plot_rider_impact_detailed(course_name, rider, data_no_wind, data_wind):
     plt.savefig(out_path, dpi=150)
     plt.close()
     print(f"  > Generated Impact Plot: {out_path}")
+
+
+def combine_tokyo_male_impact_images(project_root):
+    """
+    将东京赛道的男性 TT 与 Sprinter 影响图并排合并为一张图，保留子标题，不添加大标题。
+    """
+    img_dir = os.path.join(project_root, 'images')
+    fname_tt = os.path.join(img_dir, 'Q2_Impact_Tokyo_Olympic_Male_TT.png')
+    fname_sp = os.path.join(img_dir, 'Q2_Impact_Tokyo_Olympic_Male_Sprinter.png')
+    if not (os.path.exists(fname_tt) and os.path.exists(fname_sp)):
+        print("[Warn] Tokyo male impact images not found; skip combining.")
+        return
+
+    img_tt = plt.imread(fname_tt)
+    img_sp = plt.imread(fname_sp)
+
+    fig, axes = plt.subplots(1, 2, figsize=(16, 9))
+    axes[0].imshow(img_tt)
+    axes[0].axis('off')
+    axes[1].imshow(img_sp)
+    axes[1].axis('off')
+
+    out_path = os.path.join(img_dir, 'Q2_Impact_Tokyo_Olympic_Male_Combined.png')
+    plt.tight_layout()
+    plt.savefig(out_path, dpi=150, bbox_inches='tight')
+    plt.close(fig)
+    print(f"  > Generated Combined Impact Plot: {out_path}")
 
 
 def plot_comparison_result(course_name, rider_results):
@@ -332,7 +359,7 @@ def solve_q2():
     # 定义两种环境
     conditions = [
         {'label': 'No Wind', 'speed': 0.0},
-        {'label': 'Wind 16km/h', 'speed': 16.0 / 3.6}  # 4.44 m/s
+        {'label': 'Wind 4km/h', 'speed': 4.0 / 3.6}
     ]
 
     for conf in configs:
@@ -385,12 +412,16 @@ def solve_q2():
             else:
                 rider_groups[r_name]['no_wind'] = p
 
+        wind_speed_val = conditions[1]['speed']  # 使用统一的4 km/h风速
         for r_name, group in rider_groups.items():
             if 'wind' in group and 'no_wind' in group:
                 print(f"  Generating vivid comparison chart for {r_name}...")
-                plot_rider_impact_detailed(c_name, group['no_wind']['rider'], group['no_wind'], group['wind'])
+                plot_rider_impact_detailed(c_name, group['no_wind']['rider'], group['no_wind'], group['wind'], wind_speed=wind_speed_val)
 
     plot_combined_results(plot_data_map)
+
+    # 合并东京男性 TT 与 Sprinter 的影响图为单张并排图
+    combine_tokyo_male_impact_images(project_root)
 
     df = pd.DataFrame(results_csv)
     # 调整顺序

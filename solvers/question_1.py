@@ -12,12 +12,13 @@ if project_root not in sys.path:
 from models.cyclist import Cyclist
 
 
-def annotate_w_prime(ax, rider, durations):
+def annotate_w_prime(ax, rider, durations, demo_time=60, text_dx=25, text_dy_ratio=0.12):
     """
     辅助函数：在图表上标注 W' (绘制虚线框和文字)
-    选取 t=60s 作为一个典型的无氧做功时间点进行展示
+    - demo_time: 取样时间点，避免与其它曲线重叠
+    - text_dx: 水平偏移（秒），把文字推到标注线右侧
+    - text_dy_ratio: 垂直偏移比例，相对于 (demo_power - cp)，避免遮挡曲线
     """
-    demo_time = 60  # 在 1分钟 处展示
     # 计算该时间点的功率
     demo_power = rider.get_theoretical_power([demo_time])[0]
 
@@ -29,16 +30,17 @@ def annotate_w_prime(ax, rider, durations):
     ax.hlines(y=demo_power, xmin=0, xmax=demo_time,
               colors='black', linestyles='--', alpha=0.4, linewidth=1)
 
-    # 3. 标注文字 (放在矩形区域中间偏右)
-    # 计算矩形中心位置
-    mid_power = (rider.cp + demo_power) / 2
-    ax.text(demo_time + 10, mid_power,
-            f"  W' Area\n  ({rider.w_prime} J)",
-            fontsize=9, color='black', verticalalignment='center', fontweight='bold')
+
+    delta_p = max(30, demo_power - rider.cp)  # 至少 30W 提升，防止平贴
+    text_y = demo_power + delta_p * text_dy_ratio
+    ax.text(demo_time + text_dx, text_y,
+        f"W' Area\n({rider.w_prime} J)",
+        fontsize=9, color='black', verticalalignment='center', fontweight='bold',
+        bbox=dict(boxstyle='round,pad=0.3', fc='white', ec='gray', alpha=0.7))
 
     # 4. 在 Y轴上标记该点的功率值 (可选，增加可读性)
     ax.text(0, demo_power, f"{int(demo_power)}W ",
-            ha='right', va='center', fontsize=8, color='black')
+        ha='right', va='center', fontsize=8, color='black')
 
 
 def solve_q1():
@@ -94,9 +96,12 @@ def solve_q1():
         ax.text(durations[-1], rider.cp, f" CP={rider.cp}", va='center', fontsize=9, color=plot_color,
                 fontweight='bold')
 
-        # 3. 标注 W' (仅对每组的 TT Specialist 进行标注，避免图表太乱)
+        # 3. 标注 W'：男女各子图都为 TT 与 Sprinter 各标注一次，
+        #    通过不同 demo_time 避免文字重叠。
         if rider.rider_type == 'TT Specialist':
-            annotate_w_prime(ax, rider, durations)
+            annotate_w_prime(ax, rider, durations, demo_time=60, text_dx=30, text_dy_ratio=0.18)
+        else:
+            annotate_w_prime(ax, rider, durations, demo_time=120, text_dx=30, text_dy_ratio=0.12)
 
     # === 美化图表 ===
 
