@@ -9,7 +9,7 @@ import math
 # Bert Blocken 风阻数据 (6人队形)
 DRAG_COEFFS_6 = [0.975, 0.616, 0.497, 0.443, 0.426, 0.433]
 
-# 切换风阻惩罚
+# 切换风阻惩罚 (这是造成 U 型图左侧上升的元凶)
 SWITCH_PENALTY_DRAG = 0.2
 
 # 车手参数：6名完全一样的 TT 专家
@@ -47,7 +47,7 @@ def skiba_recovery(w_bal, w_max, cp, p_current, dt):
         return max(0, new_w)
 
     d_cp = cp - p_current
-    # 限制 d_cp 防止溢出，TT专家 CP 高，恢复能力强
+    # 限制 d_cp 防止溢出
     tau = 546 * math.exp(-0.01 * max(-200, d_cp)) + 316
     new_w = w_max - (w_max - w_bal) * math.exp(-dt / tau)
     return min(new_w, w_max)
@@ -68,15 +68,15 @@ def run_homogeneous_simulation(team, target_speed_kmh, race_dist_m, rotation_tim
 
     current_dist = 0
     current_time = 0
-    formation = team.copy()  # 初始队列 [R1, R2, ..., R6]
+    formation = team.copy()
     pull_timer = 0
 
+    # 记录日志
     logs = {r.id: [] for r in team}
 
     while current_dist < race_dist_m:
 
         # --- A. 失败判定 ---
-        # 只要有任何一人爆缸，策略即失败 (木桶效应)
         if any(r.w_bal <= 0 for r in formation):
             return None, None
 
@@ -86,7 +86,7 @@ def run_homogeneous_simulation(team, target_speed_kmh, race_dist_m, rotation_tim
         for pos, rider in enumerate(formation):
             alpha = get_drag_factor(pos)
 
-            # 切换成本：前两名车手受影响
+            # 关键：这里施加切换惩罚，导致短轮换效率低
             if is_switching and pos <= 1: alpha += SWITCH_PENALTY_DRAG
 
             f_drag = 0.5 * rho * (rider.cda * alpha) * (target_v ** 2)
@@ -96,15 +96,11 @@ def run_homogeneous_simulation(team, target_speed_kmh, race_dist_m, rotation_tim
             rider.w_bal = skiba_recovery(rider.w_bal, rider.w_prime_max, rider.cp, p_req, dt)
             logs[rider.id].append(rider.w_bal)
 
-        # --- C. 全员轮换逻辑 (Egalitarian Rotation) ---
+        # --- C. 全员轮换逻辑 ---
         pull_timer += 1
-
-        # 每个人都轮换，没有人“搭便车”
         limit = rotation_time_sec
 
         if pull_timer >= limit:
-            # 领骑者 (Index 0) 移到 队尾 (Index 5)
-            # R1 退下，R2 成为新 Leader
             formation.append(formation.pop(0))
             pull_timer = 0
 
@@ -115,46 +111,48 @@ def run_homogeneous_simulation(team, target_speed_kmh, race_dist_m, rotation_tim
 
 
 # ==========================================
-# 4. 双层优化器
+# 4. 敏感度分析 (U型图专用)
 # ==========================================
-def optimize_homogeneous(team, race_dist):
-    print("开始双层优化 (6 TT 全员轮换)...")
+def analyze_homogeneous_sensitivity(team, race_dist):
+    print("开始轮换时间敏感度分析 (Homogeneous 6 TT)...")
+    print("扫描范围: 5s - 95s (Step=5s)")
 
-    # 外层：轮换时间
-    rotation_options = range(20, 100, 10)
+    # === 修改范围以捕捉 U 型左侧 ===
+    rotation_options = range(5, 95, 5)
 
-    summary_results = []
-    best_global = {'time': float('inf'), 'speed': 0, 'rot': 0, 'log': None}
+    results = []
+    best_global = {'time': float('inf'), 'speed': 0, 'rot': 0}
 
     for rot in rotation_options:
-        # 内层：二分查找极限速度
-        # TT 专家队非常强，速度上限较高
         low, high = 50.0, 70.0
-        local_best = {'time': None, 'speed': 0}
+        local_best_time = None
+        local_max_speed = 0
 
-        for _ in range(15):
+        for _ in range(12):
             mid = (low + high) / 2
             t, log = run_homogeneous_simulation(team, mid, race_dist, rot)
 
             if t is not None:
-                local_best = {'time': t, 'speed': mid, 'log': log}
-                low = mid  # 尝试更快
+                local_best_time = t
+                local_max_speed = mid
+                low = mid
             else:
                 high = mid
 
-        if local_best['time']:
-            print(f"  轮换周期 {rot}s -> 极限速度 {local_best['speed']:.2f} km/h")
-            summary_results.append((rot, local_best['time']))
+        if local_best_time:
+            print(f"  Rot={rot:<2}s -> Time={local_best_time / 60:.3f} min")
+            results.append((rot, local_best_time))
 
-            if local_best['time'] < best_global['time']:
+            if local_best_time < best_global['time']:
                 best_global = {
-                    'time': local_best['time'],
-                    'speed': local_best['speed'],
-                    'rot': rot,
-                    'log': local_best['log']
+                    'time': local_best_time,
+                    'speed': local_max_speed,
+                    'rot': rot
                 }
+        else:
+            print(f"  Rot={rot:<2}s -> Failed (Too fast/inefficient)")
 
-    return best_global, summary_results
+    return best_global, results
 
 
 # ==========================================
@@ -162,46 +160,66 @@ def optimize_homogeneous(team, race_dist):
 # ==========================================
 if __name__ == "__main__":
     # --- 组建车队 ---
-    # 6名 TT 专家，能力完全一致
     team = []
     for i in range(6):
         team.append(Rider(f"TT_{i + 1}", STATS_TT))
 
-    RACE_DIST = 44200  # Tokyo 赛道
+    RACE_DIST = 44200
 
-    best, summary = optimize_homogeneous(team, RACE_DIST)
+    # 1. 运行敏感度分析
+    best, data = analyze_homogeneous_sensitivity(team, RACE_DIST)
 
     print("\n" + "=" * 50)
-    print(" 6人 TT 专家全员轮换策略 (Homogeneous) 结果")
+    print(" 6人 TT 专家全员轮换 (Homogeneous) 最终结果")
     print("=" * 50)
-    print(f"最佳轮换时间 (Optimal Rotation): {best['rot']} 秒")
-    print(f"极限巡航速度 (Max Speed):       {best['speed']:.2f} km/h")
-    print(f"完赛时间 (Finish Time):         {best['time'] / 60:.2f} min")
+    print(f"最佳轮换时间: {best['rot']} 秒")
+    print(f"极限巡航速度: {best['speed']:.2f} km/h")
+    print(f"完赛时间:     {best['time'] / 60:.3f} min")
 
-    # 绘图 1: 轮换时间分析
-    rots = [x[0] for x in summary]
-    times = [x[1] / 60 for x in summary]
+    # --- 绘图 1: U型敏感度曲线 ---
+    plt.figure(figsize=(10, 6))
+    x_rot = [row[0] for row in data]
+    y_time = [row[1] / 60 for row in data]
 
-    plt.figure(figsize=(10, 5))
-    plt.plot(rots, times, 'o-', color='tab:green', linewidth=2)
-    plt.title("6 TT Riders: Rotation Time Optimization", fontsize=14)
+    plt.plot(x_rot, y_time, 'o-', color='tab:green', linewidth=2)
+    plt.plot(best['rot'], best['time'] / 60, 'r*', markersize=15, label='Optimal')
+
+    plt.title("Figure 1: Sensitivity Analysis (Homogeneous Strategy)\nFinish Time vs. Rotation Interval", fontsize=14)
     plt.xlabel("Rotation Interval (s)", fontsize=12)
     plt.ylabel("Finish Time (min)", fontsize=12)
     plt.grid(True)
+
+    # 添加注释
+    if len(x_rot) > 0:
+        # 左侧标注
+        plt.annotate('High Switching Cost',
+                     xy=(x_rot[0], y_time[0]),
+                     xytext=(x_rot[0] + 10, y_time[0]),
+                     arrowprops=dict(facecolor='black', arrowstyle='->'))
+        # 右侧标注
+        plt.annotate('Deep Fatigue',
+                     xy=(x_rot[-1], y_time[-1]),
+                     xytext=(x_rot[-1] - 20, y_time[-1]),
+                     arrowprops=dict(facecolor='black', arrowstyle='->'))
+
+    plt.legend()
     plt.show()
 
-    # 绘图 2: 能量曲线
+    # --- 绘图 2: 最佳状态下的能量图 ---
+    print("\n生成能量动态图...")
+    _, final_log = run_homogeneous_simulation(team, best['speed'], RACE_DIST, best['rot'])
+
     plt.figure(figsize=(12, 6))
     for r in team:
-        # 所有人的曲线应该非常相似，交织在一起
-        plt.plot(best['log'][r.id], label=r.id, linewidth=1.5, alpha=0.8)
+        # 6条线会非常对称地交织在一起
+        plt.plot(final_log[r.id], label=r.id, linewidth=1.5, alpha=0.7)
 
-    plt.title(f"Homogeneous Energy Dynamics (Speed: {best['speed']:.2f} km/h)\nSymmetric depletion pattern",
+    plt.title(f"Figure 2: Homogeneous Energy Dynamics (Rot={best['rot']}s, Speed={best['speed']:.2f} km/h)",
               fontsize=14)
     plt.ylabel("W' Balance (J)", fontsize=12)
     plt.xlabel("Time (s)", fontsize=12)
     plt.axhline(0, color='black', linestyle=':')
-    # 只显示前两个人的图例，避免遮挡，因为大家曲线都差不多
-    plt.legend(loc='upper right', ncol=2)
+    plt.legend(loc='upper right', ncol=3)
     plt.grid(True, alpha=0.3)
+    plt.tight_layout()
     plt.show()
