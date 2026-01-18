@@ -6,13 +6,24 @@
   <component name="ChangeListManager">
     <list default="true" id="00c205ae-e2c1-4618-9e30-a331d1f2e5b7" name="Changes" comment="1">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/images/Q1_Power_Profiles_Split_Gender.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/images/Q2_Combined_Comparison.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/images/Q2_Designed_Custom_Track_power_comparison.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/images/Q2_Flanders_WorldChamp_power_comparison.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/images/Q2_Tokyo_Olympic_power_comparison.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/optimizer.py" beforeDir="false" afterPath="$PROJECT_DIR$/models/optimizer.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/solvers/question_2.py" beforeDir="false" afterPath="$PROJECT_DIR$/solvers/question_2.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/data/Q2_Final_ReOptimized.csv" beforeDir="false" afterPath="$PROJECT_DIR$/data/Q2_Final_ReOptimized.csv" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/images/Q2_Combined_ReOptimized.png" beforeDir="false" afterPath="$PROJECT_DIR$/images/Q2_Combined_ReOptimized.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/images/Q2_Designed_Custom_Track_ReOptimized.png" beforeDir="false" afterPath="$PROJECT_DIR$/images/Q2_Designed_Custom_Track_ReOptimized.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/images/Q2_Flanders_WorldChamp_ReOptimized.png" beforeDir="false" afterPath="$PROJECT_DIR$/images/Q2_Flanders_WorldChamp_ReOptimized.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/images/Q2_Impact_Designed_Custom_Track_Female_Sprinter.png" beforeDir="false" afterPath="$PROJECT_DIR$/images/Q2_Impact_Designed_Custom_Track_Female_Sprinter.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/images/Q2_Impact_Designed_Custom_Track_Female_TT.png" beforeDir="false" afterPath="$PROJECT_DIR$/images/Q2_Impact_Designed_Custom_Track_Female_TT.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/images/Q2_Impact_Designed_Custom_Track_Male_Sprinter.png" beforeDir="false" afterPath="$PROJECT_DIR$/images/Q2_Impact_Designed_Custom_Track_Male_Sprinter.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/images/Q2_Impact_Designed_Custom_Track_Male_TT.png" beforeDir="false" afterPath="$PROJECT_DIR$/images/Q2_Impact_Designed_Custom_Track_Male_TT.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/images/Q2_Impact_Flanders_WorldChamp_Female_Sprinter.png" beforeDir="false" afterPath="$PROJECT_DIR$/images/Q2_Impact_Flanders_WorldChamp_Female_Sprinter.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/images/Q2_Impact_Flanders_WorldChamp_Female_TT.png" beforeDir="false" afterPath="$PROJECT_DIR$/images/Q2_Impact_Flanders_WorldChamp_Female_TT.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/images/Q2_Impact_Flanders_WorldChamp_Male_Sprinter.png" beforeDir="false" afterPath="$PROJECT_DIR$/images/Q2_Impact_Flanders_WorldChamp_Male_Sprinter.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/images/Q2_Impact_Flanders_WorldChamp_Male_TT.png" beforeDir="false" afterPath="$PROJECT_DIR$/images/Q2_Impact_Flanders_WorldChamp_Male_TT.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/images/Q2_Impact_Tokyo_Olympic_Female_Sprinter.png" beforeDir="false" afterPath="$PROJECT_DIR$/images/Q2_Impact_Tokyo_Olympic_Female_Sprinter.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/images/Q2_Impact_Tokyo_Olympic_Female_TT.png" beforeDir="false" afterPath="$PROJECT_DIR$/images/Q2_Impact_Tokyo_Olympic_Female_TT.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/images/Q2_Impact_Tokyo_Olympic_Male_Sprinter.png" beforeDir="false" afterPath="$PROJECT_DIR$/images/Q2_Impact_Tokyo_Olympic_Male_Sprinter.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/images/Q2_Impact_Tokyo_Olympic_Male_TT.png" beforeDir="false" afterPath="$PROJECT_DIR$/images/Q2_Impact_Tokyo_Olympic_Male_TT.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/images/Q2_Tokyo_Olympic_ReOptimized.png" beforeDir="false" afterPath="$PROJECT_DIR$/images/Q2_Tokyo_Olympic_ReOptimized.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/solvers/sensitivity.py" beforeDir="false" afterPath="$PROJECT_DIR$/solvers/sensitivity.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -30,18 +41,18 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
-  "lastFilter": {
-    "state": "OPEN",
-    "assignee": "2024080911015"
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;2024080911015&quot;
   }
-}]]></component>
-  <component name="GithubPullRequestsUISettings"><![CDATA[{
-  "selectedUrlAndAccountId": {
-    "url": "https://github.com/2024080911015/train.git",
-    "accountId": "b6ea9a56-2a9d-4bca-a767-21076e78d7d4"
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/2024080911015/train.git&quot;,
+    &quot;accountId&quot;: &quot;b6ea9a56-2a9d-4bca-a767-21076e78d7d4&quot;
   }
-}]]></component>
+}</component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 4
 }</component>
@@ -50,23 +61,24 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;DefaultHtmlFileTemplate&quot;: &quot;HTML File&quot;,
-    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
-    &quot;Python.construct.executor&quot;: &quot;Run&quot;,
-    &quot;Python.generate_custom_track.executor&quot;: &quot;Run&quot;,
-    &quot;Python.pl.executor&quot;: &quot;Run&quot;,
-    &quot;Python.question_1.executor&quot;: &quot;Run&quot;,
-    &quot;Python.question_2.executor&quot;: &quot;Run&quot;,
-    &quot;Python.simulator.executor&quot;: &quot;Run&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
-    &quot;last_opened_file_path&quot;: &quot;C:/Users/iiijj/PycharmProjects/PythonProject26/data&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "DefaultHtmlFileTemplate": "HTML File",
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "Python.construct.executor": "Run",
+    "Python.generate_custom_track.executor": "Run",
+    "Python.pl.executor": "Run",
+    "Python.question_1.executor": "Run",
+    "Python.question_2.executor": "Run",
+    "Python.sensitivity.executor": "Run",
+    "Python.simulator.executor": "Run",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "git-widget-placeholder": "main",
+    "last_opened_file_path": "C:/Users/iiijj/PycharmProjects/PythonProject26/data"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="C:\Users\iiijj\PycharmProjects\PythonProject26\data" />
