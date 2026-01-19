@@ -5,18 +5,12 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="00c205ae-e2c1-4618-9e30-a331d1f2e5b7" name="Changes" comment="1">
-      <change afterPath="$PROJECT_DIR$/NandW'.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/sacrifice.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/when.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/data/Q2_Final_ReOptimized.csv" beforeDir="false" afterPath="$PROJECT_DIR$/data/Q2_Final_ReOptimized.csv" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/images/Q1_Power_Profiles_Split_Gender.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/images/Q3_Sensitivity_Boxplot_Male_Sprinter.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/images/Q3_Sensitivity_Boxplot_Male_TT.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/images/Q3_Sensitivity_Combined_Box_Gap.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/images/Q3_Split_GapBand_Combined_Male_Sprinter.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/images/Q3_Split_GapBand_Combined_Male_TT.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/solvers/question5.py" beforeDir="false" afterPath="$PROJECT_DIR$/6TTNoDrop.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/images/Q5_DNF_Rate_Comparison.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/images/Q5_Sensitivity_Combined_Box_Gap.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/images/Q5_Statistics_Summary.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/solvers/question_2.py" beforeDir="false" afterPath="$PROJECT_DIR$/solvers/question_2.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -58,6 +52,8 @@
   "keyToString": {
     "DefaultHtmlFileTemplate": "HTML File",
     "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "Python.NandW'.executor": "Run",
+    "Python.combined_plot.executor": "Run",
     "Python.construct.executor": "Run",
     "Python.generate_custom_track.executor": "Run",
     "Python.pl.executor": "Run",
@@ -67,6 +63,8 @@
     "Python.sensitivity.executor": "Run",
     "Python.sensitivity5.executor": "Run",
     "Python.simulator.executor": "Run",
+    "Python.when.executor": "Run",
+    "Python.wind_comparison.executor": "Run",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
     "RunOnceActivity.git.unshallow": "true",

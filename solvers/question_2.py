@@ -154,65 +154,51 @@ def plot_rider_impact_detailed(course_name, rider, data_no_wind, data_wind, wind
     # Create aligned power arrays for plotting (step)
     p_nw = np.array(data_no_wind['power_strategy'])
     p_w = np.array(data_wind['power_strategy'])
-
     # Convert to km and km/h
     dist_km = dist_nw / 1000.0
     vel_nw_kph = vel_nw * 3.6
     vel_w_kph = vel_w * 3.6
-    
     fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(12, 12), sharex=True)
-    
     # 1. Power Comparison
     # We use step plot logic
     x_steps = dist_km[:-1] # Start of segments
     # Actually step plot: 'post' means [i] applies to interval [i, i+1].
     # But dist_km has N+1 points.
-    
     # Let's use fill_between for power to show difference vivid
     # But steps are tricky with fill_between. Interpolate or just step.
     ax1.plot(dist_km[:-1], p_nw, label='No Wind Power', color='tab:blue', alpha=0.8)
     ax1.plot(dist_km[:-1], p_w, label='Wind Power', color='tab:red', alpha=0.8, linestyle='--')
     ax1.fill_between(dist_km[:-1], p_nw, p_w, where=(p_w > p_nw), color='red', alpha=0.1, interpolate=True, step='post')
     ax1.fill_between(dist_km[:-1], p_nw, p_w, where=(p_w <= p_nw), color='blue', alpha=0.1, interpolate=True, step='post')
-    
     ax1.set_ylabel('Power (Watts)')
     ax1.set_title(f'Rider: {rider.name} - Power Strategy (Wind Impact)')
     ax1.legend()
     ax1.grid(True, alpha=0.3)
-    
     # 2. Speed Comparison
     ax2.plot(dist_km, vel_nw_kph, label='No Wind Speed', color='tab:blue')
     ax2.plot(dist_km, vel_w_kph, label='Wind Speed (16km/h Headwind)', color='tab:red', linestyle='--')
-    
     # Fill speed loss
     ax2.fill_between(dist_km, vel_nw_kph, vel_w_kph, color='gray', alpha=0.2, label='Speed Loss')
-    
     ax2.set_ylabel('Speed (km/h)')
     ax2.set_title('Speed Profile')
     ax2.legend()
     ax2.grid(True, alpha=0.3)
-    
     # 3. Time Gap Accumulation
     # Time gap = Time_Wind - Time_NoWind (how much slower)
     # Important: Times are simulated segment by segment.
     # The arrays are aligned by segment index.
     time_gap = time_w - time_nw
-    
     ax3.plot(dist_km, time_gap, color='purple', label='Cumulative Time Loss', linewidth=2)
     ax3.fill_between(dist_km, 0, time_gap, color='purple', alpha=0.1)
-    
     ax3.set_ylabel('Time Loss (s)')
     ax3.set_xlabel('Distance (km)')
     ax3.set_title(f'Cumulative Time Loss (Total: {time_gap[-1]:.1f} s)')
     ax3.grid(True, alpha=0.3)
-    
     plt.tight_layout()
     out_path = os.path.join(project_root, 'images', f'Q2_Impact_{course_name}_{rider.name.replace(" ", "_")}.png')
     plt.savefig(out_path, dpi=150)
     plt.close()
     print(f"  > Generated Impact Plot: {out_path}")
-
-
 def combine_tokyo_male_impact_images(project_root):
     """
     将东京赛道的男性 TT 与 Sprinter 影响图并排合并为一张图，保留子标题，不添加大标题。
@@ -223,31 +209,24 @@ def combine_tokyo_male_impact_images(project_root):
     if not (os.path.exists(fname_tt) and os.path.exists(fname_sp)):
         print("[Warn] Tokyo male impact images not found; skip combining.")
         return
-
     img_tt = plt.imread(fname_tt)
     img_sp = plt.imread(fname_sp)
-
     fig, axes = plt.subplots(1, 2, figsize=(16, 9))
     axes[0].imshow(img_tt)
     axes[0].axis('off')
     axes[1].imshow(img_sp)
     axes[1].axis('off')
-
     out_path = os.path.join(img_dir, 'Q2_Impact_Tokyo_Olympic_Male_Combined.png')
     plt.tight_layout()
     plt.savefig(out_path, dpi=150, bbox_inches='tight')
     plt.close(fig)
     print(f"  > Generated Combined Impact Plot: {out_path}")
-
-
 def plot_comparison_result(course_name, rider_results):
     fig, ax1 = plt.subplots(figsize=(16, 9))
-
     # 背景
     longest = max(rider_results, key=lambda r: sum(s['length'] for s in r['course_data']))
     l_data = longest['course_data']
     l_dist = np.insert(np.cumsum([s['length'] for s in l_data]) / 1000.0, 0, 0)
-
     # 海拔
     ax2 = ax1.twinx()
     l_elev = [0]
@@ -257,7 +236,6 @@ def plot_comparison_result(course_name, rider_results):
         l_elev.append(curr)
     ax2.fill_between(l_dist, min(l_elev), l_elev, color='#2ca02c', alpha=0.15, label='Elevation')
     ax2.set_ylabel('Elevation (m)', color='#2ca02c')
-
     # 功率曲线
     for res in rider_results:
         rider = res['rider']
@@ -265,76 +243,57 @@ def plot_comparison_result(course_name, rider_results):
         dist = np.insert(np.cumsum([s['length'] for s in res['course_data']]) / 1000.0, 0, 0)
         p_plot = np.append(p_strat, p_strat[-1]) if len(p_strat) > 0 else p_strat
         n = min(len(dist), len(p_plot))
-
         # 区分有风/无风样式
         is_wind = res['is_wind']
         color = RIDER_COLORS.get(rider.name, 'gray')
         ls = ':' if is_wind else RIDER_LINESTYLES.get(rider.name, '-')
         label = f"{rider.name} {'(Wind Opt)' if is_wind else '(No Wind)'}"
         alpha = 0.7 if is_wind else 1.0
-
         ax1.step(dist[:n], p_plot[:n], where='post', color=color, linestyle=ls, label=label, alpha=alpha, linewidth=2)
-
     ax1.set_title(f"Optimization: {course_name} (Re-optimized for Wind)", fontsize=16)
     ax1.set_xlabel('Distance (km)')
     ax1.set_ylabel('Power (Watts)')
     ax1.grid(True, alpha=0.3)
     ax1.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=4)
-
     plt.tight_layout()
     plt.subplots_adjust(bottom=0.2)
-
     out = os.path.join(project_root, 'images', f'Q2_{course_name}_ReOptimized.png')
     plt.savefig(out, dpi=200)
     print(f"Saved: {out}")
     plt.close()
-
-
 def plot_combined_results(results_map):
     fig, axes = plt.subplots(2, 1, figsize=(16, 14))
     targets = ['Tokyo_Olympic', 'Flanders_WorldChamp']
-
     for i, name in enumerate(targets):
         res_list = results_map.get(name)
         if not res_list: continue
         ax = axes[i]
-
         # 简单绘制逻辑，只为展示
         longest = max(res_list, key=lambda r: sum(s['length'] for s in r['course_data']))
         l_dist = np.insert(np.cumsum([s['length'] for s in longest['course_data']]) / 1000.0, 0, 0)
-
         for res in res_list:
             rider = res['rider']
             p_strat = res['power_strategy']
             dist = np.insert(np.cumsum([s['length'] for s in res['course_data']]) / 1000.0, 0, 0)
             p_plot = np.append(p_strat, p_strat[-1]) if len(p_strat) > 0 else p_strat
             n = min(len(dist), len(p_plot))
-
             is_wind = res['is_wind']
             c = RIDER_COLORS.get(rider.name, 'gray')
             ls = ':' if is_wind else RIDER_LINESTYLES.get(rider.name, '-')
-
             ax.step(dist[:n], p_plot[:n], where='post', color=c, linestyle=ls, alpha=0.8)
-
         ax.set_title(f"{name} (Solid=No Wind, Dotted=Wind Optimized)")
         ax.set_xlim(0, l_dist[-1])
-
     out = os.path.join(project_root, 'images', 'Q2_Combined_ReOptimized.png')
     plt.savefig(out, dpi=200)
     print(f"Saved: {out}")
     plt.close()
-
-
 # === 主逻辑 ===
 def solve_q2():
     print("=== Re-Running Q2: Optimization with & without Wind ===")
-
     riders = get_all_riders()
-
     # 加载赛道
     custom_data = load_custom_course_from_csv(os.path.join(project_root, 'data', 'course_custom.csv'))
     tokyo_data = load_real_course(os.path.join(project_root, 'data', 'course_tokyo.csv'))
-
     tokyo_female = []
     if tokyo_data:
         half = sum(s['length'] for s in tokyo_data) / 2
@@ -343,44 +302,34 @@ def solve_q2():
             if acc >= half: break
             tokyo_female.append(s)
             acc += s['length']
-
     flanders_m = load_real_course(os.path.join(project_root, 'data', 'flanders_men.csv'))
     flanders_f = load_real_course(os.path.join(project_root, 'data', 'flanders_women.csv'))
-
     configs = [
         {'name': 'Designed_Custom_Track', 'm': custom_data, 'f': custom_data},
         {'name': 'Tokyo_Olympic', 'm': tokyo_data, 'f': tokyo_female},
         {'name': 'Flanders_WorldChamp', 'm': flanders_m, 'f': flanders_f}
     ]
-
     results_csv = []
     plot_data_map = {}
-
     # 定义两种环境
     conditions = [
         {'label': 'No Wind', 'speed': 0.0},
         {'label': 'Wind 4km/h', 'speed': 4.0 / 3.6}
     ]
-
     for conf in configs:
         c_name = conf['name']
         print(f"\nProcessing {c_name}...")
         plot_list = []
-
         for rider in riders:
             c_data = conf['m'] if rider.gender == 'Male' else conf['f']
             if not c_data: continue
-
             print(f"  Rider: {rider.name} ({rider.rider_type})")
-
             for cond in conditions:
                 w_speed = cond['speed']
                 label = cond['label']
-
                 # === 核心修改：针对当前风速，重新运行优化算法 ===
                 # 这会寻找专门适应这个风速的最佳策略
                 best_strategy, best_time = run_simulated_annealing(rider, c_data, wind_speed=w_speed)
-
                 # 记录用于绘图
                 plot_list.append({
                     'rider': rider,
@@ -389,7 +338,6 @@ def solve_q2():
                     'total_time': best_time,
                     'is_wind': (w_speed > 0)
                 })
-
                 # 记录到表格
                 results_csv.append({
                     'Condition': label,
@@ -398,10 +346,8 @@ def solve_q2():
                     'Time (s)': round(best_time, 2),
                     'Time (min)': round(best_time / 60, 2)
                 })
-
         plot_data_map[c_name] = plot_list
         plot_comparison_result(c_name, plot_list)
-
         # === 新增：为每位车手生成详细的风阻影响对比图 ===
         rider_groups = {}
         for p in plot_list:
@@ -411,18 +357,14 @@ def solve_q2():
                 rider_groups[r_name]['wind'] = p
             else:
                 rider_groups[r_name]['no_wind'] = p
-
         wind_speed_val = conditions[1]['speed']  # 使用统一的4 km/h风速
         for r_name, group in rider_groups.items():
             if 'wind' in group and 'no_wind' in group:
                 print(f"  Generating vivid comparison chart for {r_name}...")
                 plot_rider_impact_detailed(c_name, group['no_wind']['rider'], group['no_wind'], group['wind'], wind_speed=wind_speed_val)
-
     plot_combined_results(plot_data_map)
-
     # 合并东京男性 TT 与 Sprinter 的影响图为单张并排图
     combine_tokyo_male_impact_images(project_root)
-
     df = pd.DataFrame(results_csv)
     # 调整顺序
     df = df[['Condition', 'Course', 'Rider', 'Time (s)', 'Time (min)']]
@@ -430,7 +372,5 @@ def solve_q2():
     df.to_csv(out_csv, index=False)
     print(f"\nDone. Results saved to {out_csv}")
     print(df)
-
-
 if __name__ == "__main__":
     solve_q2()
